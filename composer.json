@@ -1,0 +1,17 @@
+{
+  "name": "wizardloop/broadcast-manager",
+  "description": "High-performance Telegram broadcast manager for MadelineProto",
+  "type": "library",
+  "license": "AGPL-3.0-only",
+  "require": {
+    "php": ">=8.2",
+    "danog/madelineproto": "^8.4",
+    "amphp/amp": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "BroadcastManager\\": "src/"
+    }
+  },
+  "minimum-stability": "stable"
+}
