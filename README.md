@@ -7,6 +7,9 @@ Manage broadcasts efficiently: send messages, media albums, pin/unpin messages, 
 
 [![AGPL License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4%EF%B8%8F-blue)](https://github.com/WizardLoop/BroadcastManager)
+[![Packagist
+Version](https://img.shields.io/packagist/v/wizardloop/broadcastmanager)](https://packagist.org/packages/wizardloop/broadcastmanager)
+[![Packagist Downloads](https://img.shields.io/packagist/dt/wizardloop/broadcastmanager?color=blue)](https://packagist.org/packages/wizardloop/broadcastmanager)
 
 ---
 
