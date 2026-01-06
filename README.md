@@ -95,9 +95,9 @@ require 'vendor/autoload.php';
 ## 🚀 Usage Example
 
 ```php
-use BroadcastTool\BroadcastManager;
+use BroadcastManager\BroadcastTool;
 
-$manager = new BroadcastManager($api);
+$manager = new BroadcastTool($api);
 
 $manager->broadcastWithProgress(
     allUsers: $users,
