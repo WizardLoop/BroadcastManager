@@ -39,9 +39,12 @@ Version](https://img.shields.io/packagist/v/wizardloop/broadcastmanager)](https:
   * Paused/cancelled indicators
 
 * 🖼 **Media Albums Support**
-
   * Send multiple images/documents in a single broadcast using `sendMultiMedia`.
   * Supports captions and message entities.
+
+* 💾 **Saving & Reusing Albums**  
+  Save albums to a JSON file for reuse in future broadcasts.  
+  Use [album-bot](https://github.com/WizardLoop/album-bot/blob/main/poll-bot.php) as an example to store album files locally.
 
 * 🛡 **FLOOD_WAIT Handling & Retries**
   Automatically respects Telegram rate limits and retries failed messages.
