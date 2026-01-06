@@ -1,5 +1,5 @@
 {
-  "name": "wizardloop/broadcast-manager",
+  "name": "wizardloop/broadcastmanager",
   "description": "High-performance Telegram broadcast manager for MadelineProto",
   "type": "library",
   "license": "AGPL-3.0-only",
