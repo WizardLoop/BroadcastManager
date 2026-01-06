@@ -1,13 +1,13 @@
 <?php
 
-namespace BroadcastManager;
+namespace BroadcastTool;
 
 use Amp\Loop;
 use Amp\File;
 use danog\MadelineProto\RPCErrorException;
 use SplQueue;
 
-class BroadcastTool
+class BroadcastManager
 {
     private API $api;
     private ?array $currentBroadcastState = null;
