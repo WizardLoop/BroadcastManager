@@ -10,7 +10,7 @@
   },
   "autoload": {
     "psr-4": {
-      "BroadcastManager\\": "src/"
+      "BroadcastTool\\": "src/"
     }
   },
   "minimum-stability": "stable"
