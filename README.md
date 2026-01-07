@@ -31,6 +31,11 @@ Version](https://img.shields.io/packagist/v/wizardloop/broadcastmanager)](https:
   * Remove previously sent messages from all users.
   * Retries failed deletions and handles Telegram API limits automatically.
 
+* ♻️ **Delete All Broadcasts**
+
+  * Remove previously all sent messages from all users.
+  * Retries failed deletions and handles Telegram API limits automatically.
+  
 * 📊 **Live Progress Tracking**
 
   * Visual progress bars
@@ -133,6 +138,18 @@ print_r($manager->progress());
 
 ```php
 $manager->deleteLastBroadcastForAll(
+    allUsers: $users,
+    chatId: $adminChatId,
+    concurrency: 20
+);
+```
+
+---
+
+## 🧹 Delete All Broadcast
+
+```php
+$manager->deleteAllBroadcastsForAll(
     allUsers: $users,
     chatId: $adminChatId,
     concurrency: 20
