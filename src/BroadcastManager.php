@@ -575,10 +575,15 @@ public function isCancelled(): bool {
 }
 
 /**
- * Check if there is a last broadcast to delete
+ * Check if there is a last broadcast message saved for deletion
  */
 public function hasLastBroadcast(): bool {
-    return $this->currentBroadcastState ?? false;
+    foreach (glob(__DIR__."/data/*/lastBroadcast.txt") as $file) {
+        if (file_exists($file) && trim(\Amp\File\read($file))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
