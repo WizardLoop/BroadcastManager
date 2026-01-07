@@ -36,7 +36,7 @@ class BroadcastManager
         $targets = [];
         foreach ($allUsers as $peer) {
             try {
-                $info = $this->getInfo($peer);
+                $info = $api->getInfo($peer);
                 $type = $info['type'] ?? 'user';
 
                 $allowedTypesByFilter = [
@@ -256,7 +256,7 @@ class BroadcastManager
      * Delete last broadcast message for all users
      */
     public function deleteLastBroadcastForAll(array $allUsers, $chatId, int $concurrency = 20): array {
-        $api = $this;
+        $api = $this->api;
         $total = count($allUsers);
 
         $state = [
@@ -389,13 +389,13 @@ class BroadcastManager
      * Unpin all messages for all users
      */
     public function unpinAllMessagesForAll(array $allUsers, $chatId, string $filterType = 'users', int $concurrency = 20): array {
-        $api = $this;
+        $api = $this->api;
 
         // Filter targets
         $targets = [];
         foreach ($allUsers as $peer) {
             try {
-                $info = $this->getInfo($peer);
+                $info = $api->getInfo($peer);
                 $type = $info['type'] ?? 'user';
 
                 $allowedTypesByFilter = [
