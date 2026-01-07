@@ -53,7 +53,7 @@ Update hasLastBroadcast method to check for last broadcast messages in data dire
 
 ## [2.0.0] - 2026-01-07
 
-## Version 2.0.0 – Async Upgrade
+## Version 2.0.0 - Async Upgrade
 
 ### What's new
 
@@ -63,3 +63,11 @@ Update hasLastBroadcast method to check for last broadcast messages in data dire
 - Improved handling of `FLOOD_WAIT` errors without stopping other tasks.
 - Introduced **concurrency control** for sending messages, deleting broadcasts, and unpinning messages.
 - All file operations (reading/writing albums and last broadcast messages) now use `Amp\File`.
+
+---
+
+## [2.0.1] - 2026-01-07
+
+### What's new
+
+* Enhance error handling in BroadcastManager
