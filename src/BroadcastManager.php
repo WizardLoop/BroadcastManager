@@ -575,6 +575,13 @@ public function isCancelled(): bool {
 }
 
 /**
+ * Check if there is a last broadcast to delete
+ */
+public function hasLastBroadcast(): bool {
+    return $this->currentBroadcastState ?? false;
+}
+
+/**
  * Get current broadcast progress
  */
 public function progress(): ?array {
