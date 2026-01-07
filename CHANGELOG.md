@@ -34,3 +34,9 @@ All notable changes to this project will be documented in this file.
 
 * Refactor hasLastBroadcast to check for saved messages
 Update hasLastBroadcast method to check for last broadcast messages in data directory.
+
+## [1.0.4] - 2026-01-07
+
+### Fixed
+
+* Refactor API calls in BroadcastManager methods
