@@ -2,6 +2,7 @@
 
 namespace BroadcastTool;
 
+use danog\MadelineProto\API;
 use Amp\Loop;
 use Amp\File;
 use danog\MadelineProto\RPCErrorException;
