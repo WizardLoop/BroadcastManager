@@ -16,17 +16,23 @@ All notable changes to this project will be documented in this file.
 * Inline buttons support for interactive messages
 * Automatic FLOOD_WAIT handling and retry system
 
+---
+
 ## [1.0.1] - 2026-01-07
 
 ### Added
 
 * use statement for MadelineProto API
 
+---
+
 ## [1.0.2] - 2026-01-07
 
 ### Added
 
 * Implement hasLastBroadcast method
+
+---
 
 ## [1.0.3] - 2026-01-07
 
@@ -35,8 +41,25 @@ All notable changes to this project will be documented in this file.
 * Refactor hasLastBroadcast to check for saved messages
 Update hasLastBroadcast method to check for last broadcast messages in data directory.
 
+---
+
 ## [1.0.4] - 2026-01-07
 
 ### Fixed
 
 * Refactor API calls in BroadcastManager methods
+
+---
+
+## [2.0.0] - 2026-01-07
+
+## Version 2.0.0 – Async Upgrade
+
+### What's new
+
+- All broadcast, deletion, and unpinning operations now run **asynchronously** using Amp.
+- Progress updates are sent **live** during execution.
+- Added support for **pause**, **resume**, and **cancel** for running broadcasts.
+- Improved handling of `FLOOD_WAIT` errors without stopping other tasks.
+- Introduced **concurrency control** for sending messages, deleting broadcasts, and unpinning messages.
+- All file operations (reading/writing albums and last broadcast messages) now use `Amp\File`.
