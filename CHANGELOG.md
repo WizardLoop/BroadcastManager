@@ -21,3 +21,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 * use statement for MadelineProto API
+
+## [1.0.2] - 2026-01-07
+
+### Added
+
+* Implement hasLastBroadcast method
