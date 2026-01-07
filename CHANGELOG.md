@@ -88,3 +88,12 @@ Update hasLastBroadcast method to check for last broadcast messages in data dire
 
 * Eliminate unnecessary count of failedTargets
 Remove redundant count of failed targets.
+
+---
+
+## [2.0.4] - 2026-01-07
+
+### Added:
+
+* Add method to delete all broadcasts for users
+Implement deleteAllBroadcastsForAll method to delete all broadcast messages for users concurrently and update the status message during the process.
