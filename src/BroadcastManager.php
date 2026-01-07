@@ -51,7 +51,12 @@ if (in_array($type, $allowed, true)) {
     $targets[] = (string) $peer;
 }
 				
-            } catch (\Throwable) { continue; }
+            } catch (\Throwable) { 
+                if ($filterType === 'all') {
+                    $targets[] = (string) $peer; 
+                }
+                continue; 
+            }
         }
 
         $total = count($targets);
@@ -407,7 +412,12 @@ if (in_array($type, $allowed, true)) {
     $targets[] = (string) $peer;
 }
 				
-            } catch (\Throwable) { continue; }
+            } catch (\Throwable) { 
+                if ($filterType === 'all') {
+                    $targets[] = (string) $peer; 
+                }
+                continue; 
+            }
         }
 
     $total = count($targets);
