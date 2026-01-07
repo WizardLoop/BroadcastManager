@@ -62,8 +62,6 @@ if (in_array($type, $allowed, true)) {
             }
         }
 
-        $failedTargets = count($failedTargets);
-
         $total = count($targets);
         $state = [
             'sent' => 0,

@@ -79,3 +79,12 @@ Update hasLastBroadcast method to check for last broadcast messages in data dire
 ### Fixed:
 
 * Track failed counts in BroadcastManager methods
+
+---
+
+## [2.0.3] - 2026-01-07
+
+### Fixed:
+
+* Eliminate unnecessary count of failedTargets
+Remove redundant count of failed targets.
