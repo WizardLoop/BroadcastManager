@@ -71,3 +71,11 @@ Update hasLastBroadcast method to check for last broadcast messages in data dire
 ### What's new
 
 * Enhance error handling in BroadcastManager
+
+---
+
+## [2.0.2] - 2026-01-07
+
+### Fixed:
+
+* Track failed counts in BroadcastManager methods
