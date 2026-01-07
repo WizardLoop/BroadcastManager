@@ -33,6 +33,7 @@ class BroadcastManager
         $api = $this->api;
 
         $targets = [];
+		$failedCount = 0;
         foreach ($allUsers as $peer) {
             try {
                 $info = $api->getInfo($peer);
@@ -54,15 +55,19 @@ if (in_array($type, $allowed, true)) {
             } catch (\Throwable) { 
                 if ($filterType === 'all') {
                     $targets[] = (string) $peer; 
-                }
+                } else {
+                $failedCount++;
+				}
                 continue; 
             }
         }
 
+        $failedTargets = count($failedTargets);
+
         $total = count($targets);
         $state = [
             'sent' => 0,
-            'failed' => 0,
+            'failed' => $failedCount,
             'flood' => 0,
             'queue' => new \SplQueue(),
             'lastMessageIds' => [],
@@ -394,6 +399,7 @@ if (in_array($type, $allowed, true)) {
     $api = $this->api;
 
         $targets = [];
+		$failedCount = 0;
         foreach ($allUsers as $peer) {
             try {
                 $info = $api->getInfo($peer);
@@ -415,7 +421,9 @@ if (in_array($type, $allowed, true)) {
             } catch (\Throwable) { 
                 if ($filterType === 'all') {
                     $targets[] = (string) $peer; 
-                }
+                } else {
+                $failedCount++;
+				}
                 continue; 
             }
         }
@@ -424,7 +432,7 @@ if (in_array($type, $allowed, true)) {
 
     $state = [
         'unpin' => 0,
-        'failed' => 0,
+        'failed' => $failedCount,
         'flood' => 0,
         'queue' => new \SplQueue(),
         'done' => false,
