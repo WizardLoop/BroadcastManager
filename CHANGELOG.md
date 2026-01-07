@@ -15,3 +15,9 @@ All notable changes to this project will be documented in this file.
 * Support for sending media albums (`sendMultiMedia`)
 * Inline buttons support for interactive messages
 * Automatic FLOOD_WAIT handling and retry system
+
+## [1.0.1] - 2026-01-07
+
+### Added
+
+* use statement for MadelineProto API
