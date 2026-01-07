@@ -32,28 +32,26 @@ class BroadcastManager
     ): array {
         $api = $this->api;
 
-        // Filter targets
         $targets = [];
         foreach ($allUsers as $peer) {
             try {
                 $info = $api->getInfo($peer);
                 $type = $info['type'] ?? 'user';
 
-                $allowedTypesByFilter = [
-                    'all' => ['user', 'bot', 'chat', 'supergroup', 'channel'],
-                    'users' => ['user', 'bot'],
-                    'groups' => ['chat', 'supergroup'],
-                    'channels' => ['channel'],
-                ];
+$allowedTypesByFilter = [
+    'all' => ['user', 'bot', 'chat', 'supergroup', 'channel'],
+    'users' => ['user', 'bot'],
+    'groups' => ['chat', 'supergroup'],
+    'channels' => ['channel'],
+];
 
-                $allowed = $allowedTypesByFilter[$filterType] ?? ['user', 'bot'];
+$allowed = $allowedTypesByFilter[$filterType] ?? ['user', 'bot'];
 
-                if (in_array($type, $allowed, true)) {
-                    $targets[] = (string) $peer;
-                }
-            } catch (\Throwable) {
-                continue;
-            }
+if (in_array($type, $allowed, true)) {
+    $targets[] = (string) $peer;
+}
+				
+            } catch (\Throwable) { continue; }
         }
 
         $total = count($targets);
@@ -61,7 +59,7 @@ class BroadcastManager
             'sent' => 0,
             'failed' => 0,
             'flood' => 0,
-            'queue' => new SplQueue(),
+            'queue' => new \SplQueue(),
             'lastMessageIds' => [],
             'paused' => false,
             'cancel' => false,
@@ -80,14 +78,14 @@ class BroadcastManager
         ]);
         $statusId = $api->extractMessageId($status);
 
-        // Progress updater
-        Loop::defer(function () use ($api, $chatId, $statusId, &$state, $total) {
+        \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
             $lastText = '';
             while (!$state['done']) {
                 $processed = $state['sent'] + $state['failed'];
-                $pending = $total - $processed;
-                $elapsed = microtime(true) - $state['startedAt'];
-                $tps = $elapsed > 0 ? round($state['sent'] / $elapsed, 2) : 0;
+                $pending   = $total - $processed;
+                $elapsed   = microtime(true) - $state['startedAt'];
+                $eta       = $processed > 0 ? (int)(($elapsed / $processed) * $pending) : 0;
+                $tps       = $elapsed > 0 ? round($state['sent'] / $elapsed, 2) : 0;
 
                 $text =
                     "<b>📊 Broadcast Progress</b>\n\n".
@@ -95,7 +93,7 @@ class BroadcastManager
                     "📨 Sent: {$state['sent']} / $total\n".
                     "❌ Failed: {$state['failed']}\n".
                     "⏳ Pending: $pending\n".
-                    "⚡ TPS: {$tps} msg/s".
+                    "⚡ TPS: {$tps} msg/s\n".
                     ($state['paused'] ? "\n⏸ <b>Paused</b>" : '').
                     ($state['cancel'] ? "\n🛑 <b>Cancelled</b>" : '');
 
@@ -110,14 +108,12 @@ class BroadcastManager
                         $lastText = $text;
                     } catch (\Throwable) {}
                 }
-
                 $api->sleep(1);
             }
         });
 
-        // Broadcast workers
         for ($i = 0; $i < $concurrency; $i++) {
-            Loop::defer(function () use ($api, &$state, $messages, $pin) {
+            \Amp\async(function () use ($api, &$state, $messages, $pin) {
                 while (!$state['queue']->isEmpty()) {
                     if ($state['cancel']) return;
                     while ($state['paused']) $api->sleep(1);
@@ -132,7 +128,7 @@ class BroadcastManager
 
                         foreach ($messages as $message) {
                             if (isset($message['albumFile']) && file_exists($message['albumFile'])) {
-                                $album = json_decode(File\read($message['albumFile']), true);
+                                $album = json_decode(\Amp\File\read($message['albumFile']), true);
                                 if ($album) $albumMessages = $album;
                             }
                         }
@@ -188,7 +184,7 @@ class BroadcastManager
                         $state['sent']++;
                         $state['lastMessageIds'][$peer] = (string)$lastMessageId;
 
-                    } catch (RPCErrorException $e) {
+                    } catch (\danog\MadelineProto\RPCErrorException $e) {
                         if (str_contains($e->getMessage(), 'FLOOD_WAIT')) {
                             $state['flood']++;
                             preg_match('/FLOOD_WAIT_(\d+)/', $e->getMessage(), $m);
@@ -215,7 +211,7 @@ class BroadcastManager
             $api->sleep(1);
         }
 
-        $state['done'] = true;
+    $state['done'] = true;
 
     $processed = $state['sent'] + $state['failed'];
     $pending   = $total - $processed;
@@ -241,10 +237,12 @@ class BroadcastManager
         ]);
     } catch (\Throwable) {}
 
+            try { \Amp\File\write(__DIR__."/data/LastBrodDATA.txt", $finalText); } catch (\Throwable) {}
+
         foreach ($state['lastMessageIds'] as $peer => $id) {
             $dir = __DIR__."/data/$peer";
             if (!is_dir($dir)) mkdir($dir, 0777, true);
-            try { File\write("$dir/lastBroadcast.txt", (string)$id); } catch (\Throwable) {}
+            try { \Amp\File\write("$dir/lastBroadcast.txt", (string)$id); } catch (\Throwable) {}
         }
 
         $this->currentBroadcastState = &$state;
@@ -256,118 +254,117 @@ class BroadcastManager
      * Delete last broadcast message for all users
      */
     public function deleteLastBroadcastForAll(array $allUsers, $chatId, int $concurrency = 20): array {
-        $api = $this->api;
-        $total = count($allUsers);
+    $api = $this->api;
+    $total = count($allUsers);
+    $state = [
+        'deleted' => 0,
+        'failed' => 0,
+        'flood' => 0,
+        'queue' => new \SplQueue(),
+        'done' => false,
+        'startedAt' => microtime(true),
+    ];
 
-        $state = [
-            'deleted' => 0,
-            'failed' => 0,
-            'flood' => 0,
-            'queue' => new SplQueue(),
-            'done' => false,
-            'startedAt' => microtime(true),
-        ];
+    foreach ($allUsers as $peer) {
+        $state['queue']->enqueue(['peer' => $peer, 'attempts' => 0]);
+    }
 
-        foreach ($allUsers as $peer) {
-            $state['queue']->enqueue(['peer' => $peer, 'attempts' => 0]);
-        }
+    $status = $api->messages->sendMessage([
+        'peer' => $chatId,
+        'message' => "⌛ Deleting last broadcast...",
+        'parse_mode' => 'HTML'
+    ]);
+    $statusId = $api->extractMessageId($status);
 
-        $status = $api->messages->sendMessage([
-            'peer' => $chatId,
-            'message' => "⌛ Deleting last broadcasts...",
-            'parse_mode' => 'HTML'
-        ]);
-        $statusId = $api->extractMessageId($status);
+    \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
+        $lastText = '';
+        while (!$state['done']) {
+            $processed = $state['deleted'] + $state['failed'];
+            $pending   = $total - $processed;
+            $elapsed   = microtime(true) - $state['startedAt'];
+            $tps       = $elapsed > 0 ? round($state['deleted'] / $elapsed, 2) : 0;
 
-        // Progress updater
-        Loop::defer(function () use ($api, $chatId, $statusId, &$state, $total) {
-            $lastText = '';
-            while (!$state['done']) {
-                $processed = $state['deleted'] + $state['failed'];
-                $pending = $total - $processed;
-                $elapsed = microtime(true) - $state['startedAt'];
-                $tps = $elapsed > 0 ? round($state['deleted'] / $elapsed, 2) : 0;
+            $text =
+                "<b>📊 Deleting Last Broadcast</b>\n\n".
+                "<code>".$this->progressBar($processed, $total)."</code>\n\n".
+                "✅ Deleted: {$state['deleted']} / $total\n".
+                "❌ Failed: {$state['failed']}\n".
+                "⏳ Pending: $pending\n".
+                "⚡ TPS: {$tps} msg/s";
 
-                $text =
-                    "<b>📊 Deleting Last Broadcasts</b>\n\n".
-                    "<code>".$this->progressBar($processed, $total)."</code>\n\n".
-                    "✅ Deleted: {$state['deleted']} / $total\n".
-                    "❌ Failed: {$state['failed']}\n".
-                    "⏳ Pending: $pending\n".
-                    "⚡ TPS: {$tps} msg/s";
-
-                if ($text !== $lastText) {
-                    try {
-                        $api->messages->editMessage([
-                            'peer' => $chatId,
-                            'id' => $statusId,
-                            'message' => $text,
-                            'parse_mode' => 'HTML'
-                        ]);
-                        $lastText = $text;
-                    } catch (\Throwable) {}
-                }
-                $api->sleep(1);
+            if ($text !== $lastText) {
+                try {
+                    $api->messages->editMessage([
+                        'peer' => $chatId,
+                        'id' => $statusId,
+                        'message' => $text,
+                        'parse_mode' => 'HTML'
+                    ]);
+                    $lastText = $text;
+                } catch (\Throwable) {}
             }
-        });
+            $api->sleep(1);
+        }
+    });
 
-        // Workers
-        for ($i = 0; $i < $concurrency; $i++) {
-            Loop::defer(function () use ($api, &$state) {
-                while (!$state['queue']->isEmpty()) {
-                    $job = $state['queue']->dequeue();
-                    $peer = $job['peer'];
-                    $attempts = $job['attempts'];
+    for ($i = 0; $i < $concurrency; $i++) {
+        \Amp\async(function () use ($api, &$state) {
+            while (!$state['queue']->isEmpty()) {
+                $job = $state['queue']->dequeue();
+                $peer = $job['peer'];
+                $attempts = $job['attempts'];
 
-                    $file = __DIR__."/data/$peer/lastBroadcast.txt";
-                    if (!file_exists($file)) {
-                        $state['failed']++;
+                $file = __DIR__."/data/$peer/lastBroadcast.txt";
+                if (!file_exists($file)) {
+                    $state['failed']++;
+                    continue;
+                }
+
+                try {
+                    $lastMessageId = (int) \Amp\File\read($file);
+
+                    $api->messages->deleteMessages([
+                        'id' => [$lastMessageId],
+                        'revoke' => true,
+                        'peer' => $peer
+                    ]);
+
+                    unlink($file);
+                    $state['deleted']++;
+
+                } catch (\danog\MadelineProto\RPCErrorException $e) {
+                    if (str_contains($e->getMessage(), 'FLOOD_WAIT')) {
+                        $state['flood']++;
+                        preg_match('/FLOOD_WAIT_(\d+)/', $e->getMessage(), $m);
+                        $api->sleep((int)($m[1] ?? 5));
+                        $state['queue']->enqueue(['peer'=>$peer,'attempts'=>$attempts]);
                         continue;
                     }
 
-                    try {
-                        $lastMessageId = (int) File\read($file);
-                        $api->messages->deleteMessages([
-                            'id' => [$lastMessageId],
-                            'revoke' => true,
-                            'peer' => $peer
-                        ]);
-                        unlink($file);
-                        $state['deleted']++;
-
-                    } catch (RPCErrorException $e) {
-                        if (str_contains($e->getMessage(), 'FLOOD_WAIT')) {
-                            $state['flood']++;
-                            preg_match('/FLOOD_WAIT_(\d+)/', $e->getMessage(), $m);
-                            $api->sleep((int)($m[1] ?? 5));
-                            $state['queue']->enqueue(['peer'=>$peer,'attempts'=>$attempts]);
-                            continue;
-                        }
-
-                        if ($attempts >= 3) {
-                            $state['failed']++;
-                        } else {
-                            $state['queue']->enqueue(['peer'=>$peer,'attempts'=>$attempts + 1]);
-                            $api->sleep(0.5);
-                        }
-
-                    } catch (\Throwable) {
+                    if ($attempts >= 3) {
                         $state['failed']++;
+                    } else {
+                        $state['queue']->enqueue(['peer'=>$peer,'attempts'=>$attempts + 1]);
+                        $api->sleep(0.5);
                     }
+
+                } catch (\Throwable) {
+                    $state['failed']++;
                 }
-            });
-        }
+            }
+        });
+    }
 
-        while (($state['deleted'] + $state['failed']) < $total) {
-            $api->sleep(1);
-        }
+    while (($state['deleted'] + $state['failed']) < $total) {
+        $api->sleep(1);
+    }
 
-        $state['done'] = true;
+    $state['done'] = true;
 
     $elapsed = microtime(true) - $state['startedAt'];
     $tps = $elapsed > 0 ? round($state['deleted'] / $elapsed, 2) : 0;
     $finalText =
-        "<b>📊 Deleting Last Broadcasts</b>\n\n".
+        "<b>📊 Deleting Last Broadcast</b>\n\n".
         "<code>".$this->progressBar($state['deleted'] + $state['failed'], $total)."</code>\n\n".
         "✅ Deleted: {$state['deleted']} / $total\n".
         "❌ Failed: {$state['failed']}\n".
@@ -382,131 +379,144 @@ class BroadcastManager
         ]);
     } catch (\Throwable) {}
 
-        return $state;
-    }
+    return $state;
+}
 
     /**
      * Unpin all messages for all users
      */
     public function unpinAllMessagesForAll(array $allUsers, $chatId, string $filterType = 'users', int $concurrency = 20): array {
-        $api = $this->api;
+    $api = $this->api;
 
-        // Filter targets
         $targets = [];
         foreach ($allUsers as $peer) {
             try {
                 $info = $api->getInfo($peer);
                 $type = $info['type'] ?? 'user';
 
-                $allowedTypesByFilter = [
-                    'all' => ['user', 'bot', 'chat', 'supergroup', 'channel'],
-                    'users' => ['user', 'bot'],
-                    'groups' => ['chat', 'supergroup'],
-                    'channels' => ['channel'],
-                ];
+$allowedTypesByFilter = [
+    'all' => ['user', 'bot', 'chat', 'supergroup', 'channel'],
+    'users' => ['user', 'bot'],
+    'groups' => ['chat', 'supergroup'],
+    'channels' => ['channel'],
+];
 
-                $allowed = $allowedTypesByFilter[$filterType] ?? ['user', 'bot'];
+$allowed = $allowedTypesByFilter[$filterType] ?? ['user', 'bot'];
 
-                if (in_array($type, $allowed, true)) {
-                    $targets[] = (string) $peer;
-                }
+if (in_array($type, $allowed, true)) {
+    $targets[] = (string) $peer;
+}
+				
             } catch (\Throwable) { continue; }
         }
 
-        $total = count($targets);
+    $total = count($targets);
 
-        $state = [
-            'unpin' => 0,
-            'failed' => 0,
-            'flood' => 0,
-            'queue' => new SplQueue(),
-            'done' => false,
-            'startedAt' => microtime(true),
-        ];
+    $state = [
+        'unpin' => 0,
+        'failed' => 0,
+        'flood' => 0,
+        'queue' => new \SplQueue(),
+        'done' => false,
+        'startedAt' => microtime(true),
+    ];
 
-        foreach ($targets as $peer) {
-            $state['queue']->enqueue(['peer'=>$peer,'attempts'=>0]);
-        }
-
-        $status = $api->messages->sendMessage([
-            'peer' => $chatId,
-            'message' => "📌⌛ Starting unpin for all subscribers...",
-            'parse_mode' => 'HTML'
+    foreach ($targets as $peer) {
+        $state['queue']->enqueue([
+            'peer' => $peer,
+            'attempts' => 0
         ]);
-        $statusId = $api->extractMessageId($status);
+    }
 
-        // Progress updater
-        Loop::defer(function () use ($api, $chatId, $statusId, &$state, $total) {
-            $lastText = '';
-            while (!$state['done']) {
-                $processed = $state['unpin'] + $state['failed'];
-                $pending = $total - $processed;
-                $elapsed = microtime(true) - $state['startedAt'];
-                $tps = $elapsed > 0 ? round($state['unpin'] / $elapsed, 2) : 0;
+    $status = $api->messages->sendMessage([
+        'peer' => $chatId,
+        'message' => "📌⌛ Starting unpin for all subscribers...",
+        'parse_mode' => 'HTML'
+    ]);
+    $statusId = $api->extractMessageId($status);
 
-                $text =
-                    "<b>📌 Unpinning Messages</b>\n\n".
-                    "<code>".$this->progressBar($processed, $total)."</code>\n\n".
-                    "📤 Unpinned: {$state['unpin']} / $total\n".
-                    "❌ Failed: {$state['failed']}\n".
-                    "⚠ FLOOD_WAIT: {$state['flood']}\n".
-                    "⏳ Pending: $pending\n".
-                    "⚡ TPS: {$tps} msg/s";
+    \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
+        $lastText = '';
+        while (!$state['done']) {
+            $processed = $state['unpin'] + $state['failed'];
+            $pending   = $total - $processed;
+            $elapsed   = microtime(true) - $state['startedAt'];
+            $tps       = $elapsed > 0 ? round($state['unpin'] / $elapsed, 2) : 0;
 
-                if ($text !== $lastText) {
-                    try {
-                        $api->messages->editMessage([
-                            'peer'=>$chatId,
-                            'id'=>$statusId,
-                            'message'=>$text,
-                            'parse_mode'=>'HTML'
-                        ]);
-                        $lastText = $text;
-                    } catch (\Throwable) {}
-                }
+            $text =
+                "<b>📌 Unpinning Messages</b>\n\n".
+                "<code>".$this->progressBar($processed, $total)."</code>\n\n".
+                "📤 Unpinned: {$state['unpin']} / $total\n".
+                "❌ Failed: {$state['failed']}\n".
+                "⚠ FLOOD_WAIT: {$state['flood']}\n".
+                "⏳ Pending: $pending\n".
+                "⚡ TPS: {$tps} msg/s";
 
-                $api->sleep(1);
+            if ($text !== $lastText) {
+                try {
+                    $api->messages->editMessage([
+                        'peer' => $chatId,
+                        'id' => $statusId,
+                        'message' => $text,
+                        'parse_mode' => 'HTML'
+                    ]);
+                    $lastText = $text;
+                } catch (\Throwable) {}
             }
-        });
 
-        // Workers
-        for ($i=0;$i<$concurrency;$i++) {
-            Loop::defer(function () use ($api, &$state) {
-                while (!$state['queue']->isEmpty()) {
-                    $job = $state['queue']->dequeue();
-                    $peer = $job['peer'];
-                    $attempts = $job['attempts'];
-
-                    try {
-                        $api->messages->unpinAllMessages(['peer'=>$peer]);
-                        $state['unpin']++;
-                    } catch (RPCErrorException $e) {
-                        if (str_contains($e->getMessage(),'FLOOD_WAIT')) {
-                            $state['flood']++;
-                            preg_match('/FLOOD_WAIT_(\d+)/',$e->getMessage(),$m);
-                            $api->sleep((int)($m[1] ?? 5));
-                            $state['queue']->enqueue(['peer'=>$peer,'attempts'=>$attempts]);
-                            continue;
-                        }
-
-                        if ($attempts >= 3) {
-                            $state['failed']++;
-                        } else {
-                            $state['queue']->enqueue(['peer'=>$peer,'attempts'=>$attempts+1]);
-                            $api->sleep(0.5);
-                        }
-                    } catch (\Throwable) {
-                        $state['failed']++;
-                    }
-                }
-            });
-        }
-
-        while (($state['unpin'] + $state['failed']) < $total) {
             $api->sleep(1);
         }
+    });
 
-        $state['done'] = true;
+    for ($i = 0; $i < $concurrency; $i++) {
+        \Amp\async(function () use ($api, &$state) {
+            while (!$state['queue']->isEmpty()) {
+                $job = $state['queue']->dequeue();
+                $peer = $job['peer'];
+                $attempts = $job['attempts'];
+
+                try {
+                    $api->messages->unpinAllMessages([
+                        'peer' => $peer
+                    ]);
+
+                    $state['unpin']++;
+
+                } catch (\danog\MadelineProto\RPCErrorException $e) {
+
+                    if (str_contains($e->getMessage(), 'FLOOD_WAIT')) {
+                        $state['flood']++;
+                        preg_match('/FLOOD_WAIT_(\d+)/', $e->getMessage(), $m);
+                        $api->sleep((int)($m[1] ?? 5));
+                        $state['queue']->enqueue([
+                            'peer' => $peer,
+                            'attempts' => $attempts
+                        ]);
+                        continue;
+                    }
+
+                    if ($attempts >= 3) {
+                        $state['failed']++;
+                    } else {
+                        $state['queue']->enqueue([
+                            'peer' => $peer,
+                            'attempts' => $attempts + 1
+                        ]);
+                        $api->sleep(0.5);
+                    }
+
+                } catch (\Throwable) {
+                    $state['failed']++;
+                }
+            }
+        });
+    }
+
+    while (($state['unpin'] + $state['failed']) < $total) {
+        $api->sleep(1);
+    }
+
+    $state['done'] = true;
 
     $finalText =
         "<b>📌 Unpinning Messages</b>\n\n".
@@ -524,8 +534,8 @@ class BroadcastManager
         ]);
     } catch (\Throwable) {}
 
-        return $state;
-    }
+    return $state;
+}
 
     private function progressBar(int $current, int $total): string {
         $len = 20;
