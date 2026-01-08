@@ -1,6 +1,4 @@
-# README.md
-
-# 📨 BroadcastManager
+# BroadcastManager
 
 **High-Performance Telegram Broadcast Manager** for [MadelineProto](https://docs.madelineproto.xyz/).
 Manage broadcasts efficiently: send messages, media albums, pin/unpin messages, control broadcasts in real-time, and track live progress with advanced features.
