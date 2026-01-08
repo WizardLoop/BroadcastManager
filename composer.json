@@ -2,9 +2,22 @@
   "name": "wizardloop/broadcastmanager",
   "description": "High-performance Telegram broadcast manager for MadelineProto",
   "type": "library",
+  "keywords": ["telegram", "madelineproto", "broadcast", "bot", "php"],
+  "homepage": "https://github.com/WizardLoop/BroadcastManager",
   "license": "AGPL-3.0-only",
+  "authors": [
+    {
+      "name": "WizardLoop",
+      "homepage": "https://wizardloop.com"
+    }
+  ],
+  "support": {
+    "source": "https://github.com/WizardLoop/BroadcastManager",
+    "docs": "https://github.com/WizardLoop/BroadcastManager#readme",
+    "issues": "https://github.com/WizardLoop/BroadcastManager/issues"
+  },
   "require": {
-    "php": ">=8.2",
+    "php": "^8.2",
     "danog/madelineproto": "^8.4",
     "amphp/amp": "^3.0"
   },
@@ -13,5 +26,6 @@
       "BroadcastTool\\": "src/"
     }
   },
-  "minimum-stability": "stable"
+  "minimum-stability": "stable",
+  "prefer-stable": true
 }
