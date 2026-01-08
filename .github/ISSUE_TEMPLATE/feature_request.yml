@@ -15,6 +15,4 @@ body:
     attributes:
       label: Usage Example
       description: Show a code example or output illustrating how this feature would work.
-  - type: checkboxes
-    id: broadcast
-    attributes:
+ 
