@@ -32,6 +32,13 @@ class BroadcastManager
     ): array {
         $api = $this->api;
 
+        $status = $api->messages->sendMessage([
+            'peer' => $chatId,
+            'message' => '⌛ GATHERING PEERS...',
+            'parse_mode' => 'HTML'
+        ]);
+        $statusId = $api->extractMessageId($status);
+
         $targets = [];
 		$failedCount = 0;
         foreach ($allUsers as $peer) {
@@ -79,12 +86,12 @@ if (in_array($type, $allowed, true)) {
             $state['queue']->enqueue(['peer' => $peer, 'attempts' => 0]);
         }
 
-        $status = $api->messages->sendMessage([
-            'peer' => $chatId,
-            'message' => '⌛ Starting broadcast...',
-            'parse_mode' => 'HTML'
+        $api->messages->editMessage([
+        'peer' => $chatId,
+        'id' => $statusId,
+        'message' => '⌛ Starting broadcast...',
+        'parse_mode' => 'HTML'
         ]);
-        $statusId = $api->extractMessageId($status);
 
         \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
             $lastText = '';
@@ -210,6 +217,7 @@ if (in_array($type, $allowed, true)) {
 
                     } catch (\Throwable) {
                         $state['failed']++;
+
                     }
                 }
             });
@@ -541,6 +549,13 @@ if (in_array($type, $allowed, true)) {
     public function unpinAllMessagesForAll(array $allUsers, $chatId, string $filterType = 'users', int $concurrency = 20): array {
     $api = $this->api;
 
+    $status = $api->messages->sendMessage([
+    'peer' => $chatId,
+    'message' => '⌛ GATHERING PEERS...',
+    'parse_mode' => 'HTML'
+    ]);
+    $statusId = $api->extractMessageId($status);
+
         $targets = [];
 		$failedCount = 0;
         foreach ($allUsers as $peer) {
@@ -589,12 +604,12 @@ if (in_array($type, $allowed, true)) {
         ]);
     }
 
-    $status = $api->messages->sendMessage([
-        'peer' => $chatId,
-        'message' => "📌⌛ Starting unpin for all subscribers...",
-        'parse_mode' => 'HTML'
+    $api->messages->editMessage([
+    'peer' => $chatId,
+    'id' => $statusId,
+    'message' => "📌⌛ Starting unpin for all subscribers...",
+    'parse_mode' => 'HTML'
     ]);
-    $statusId = $api->extractMessageId($status);
 
     \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
         $lastText = '';
@@ -776,6 +791,17 @@ public function progress(): ?array {
         'paused' => $state['paused'] ?? false,
         'cancelled' => $state['cancel'] ?? false,
     ];
+}
+
+/**
+ * Last broadcast data
+ */
+public function lastBroadcastData(): string|false {
+        if (file_exists(__DIR__."/data/LastBrodDATA.txt")) {
+            return \Amp\File\read(__DIR__."/data/LastBrodDATA.txt");
+        }else{
+            return false;
+        }
 }
 
 }

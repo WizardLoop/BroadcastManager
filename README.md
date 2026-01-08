@@ -146,7 +146,7 @@ $manager->deleteLastBroadcastForAll(
 
 ---
 
-## 🧹 Delete All Broadcast
+## ♻️ Delete All Broadcast
 
 ```php
 $manager->deleteAllBroadcastsForAll(
@@ -154,6 +154,14 @@ $manager->deleteAllBroadcastsForAll(
     chatId: $adminChatId,
     concurrency: 20
 );
+```
+
+---
+
+## 📊 Get Last Broadcast Data
+
+```php
+$manager->lastBroadcastData();
 ```
 
 ---
