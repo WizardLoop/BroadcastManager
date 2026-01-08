@@ -97,3 +97,13 @@ Remove redundant count of failed targets.
 
 * Add method to delete all broadcasts for users
 Implement deleteAllBroadcastsForAll method to delete all broadcast messages for users concurrently and update the status message during the process.
+
+---
+
+## [2.0.5] - 2026-01-08
+
+### Added:
+
+* Enhance status messaging in BroadcastManager
+Added functionality to send initial status messages when gathering peers and starting broadcasts. Updated the methods to edit messages instead of sending new ones for status updates.
+
