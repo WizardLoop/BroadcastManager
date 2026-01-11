@@ -123,7 +123,6 @@ $manager->cancel();
 ```
 
 Check state:
-
 ```php
 if ($manager->isPaused()) echo "Paused";
 if ($manager->isCancelled()) echo "Cancelled";
@@ -133,10 +132,10 @@ print_r($manager->progress());
 ```
 
 Set data dir:
-
 ```php
 BroadcastManager::setDataDir(__DIR__ . '/data');
 ```
+_default is: __DIR__ . '../data'_
 
 ---
 
