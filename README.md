@@ -127,6 +127,8 @@ Check state:
 ```php
 if ($manager->isPaused()) echo "Paused";
 if ($manager->isCancelled()) echo "Cancelled";
+if (!$manager->hasLastBroadcast()) echo "No last Broadcast do delete";
+if (!$manager->hasAllBroadcast()) echo "No all Broadcast to delete";
 print_r($manager->progress());
 ```
 

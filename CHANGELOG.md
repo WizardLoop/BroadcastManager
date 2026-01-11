@@ -107,3 +107,20 @@ Implement deleteAllBroadcastsForAll method to delete all broadcast messages for 
 * Enhance status messaging in BroadcastManager
 Added functionality to send initial status messages when gathering peers and starting broadcasts. Updated the methods to edit messages instead of sending new ones for status updates.
 
+---
+
+## [3.0.0] - 2026-01-11
+
+## Version 3.0.0 - Async Upgrade
+
+### Added:
+* Added `hasAllBroadcast()`.
+
+### Improvements:
+* Watchdog monitors stuck jobs and re-enqueues them.
+* Improved file handling for `lastBroadcast.txt` and `messages.txt`.
+* Modularized code structure for readability and maintainability.
+
+### Fixed:
+* Better error handling for missing files or blocked users.
+* Proper cleanup of message files after deletion.
