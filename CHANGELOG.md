@@ -140,3 +140,11 @@ Added functionality to send initial status messages when gathering peers and sta
 ### Added:
 
 * setDataDir & getDataDir
+
+---
+
+## [3.0.3] - 2026-01-11
+
+### Fixed:
+
+* Fix getDataDir() to handle uninitialized $dataDir

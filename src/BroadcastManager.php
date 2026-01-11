@@ -23,7 +23,7 @@ class BroadcastManager
     private API $api;
     private ?array $currentBroadcastState = null;
     private array $albumTimers = [];
-    private static string $dataDir;
+    private static string $dataDir = '';
 
     public function __construct(API $api)
     {
@@ -512,195 +512,6 @@ class BroadcastManager
     /**
      * Delete all broadcasts message for all users
      */
-/*
-    public function deleteAllBroadcastsForAll(
-        array $allUsers,
-        $chatId,
-        int $concurrency = 20
-    ): array {
-    $api = $this->api;
-    $total = count($allUsers);
-
-    $state = [
-        'deleted' => 0,
-        'failed' => 0,
-        'flood' => 0,
-        'queue' => new \SplQueue(),
-        'inFlight' => [],
-        'done' => false,
-        'cancel' => false,
-        'startedAt' => microtime(true),
-    ];
-
-    foreach ($allUsers as $peer) {
-        $state['queue']->enqueue([
-            'peer' => (string)$peer,
-            'attempts' => 0,
-            'startedAt' => null,
-            'availableAt' => 0
-        ]);
-    }
-
-    $status = $api->messages->sendMessage([
-        'peer' => $chatId,
-        'message' => "⌛ Deleting all broadcasts...",
-        'parse_mode' => 'HTML'
-    ]);
-    $statusId = $api->extractMessageId($status);
-
-    \Amp\async(function () use (&$state) {
-        while (!$state['done']) {
-            foreach ($state['inFlight'] as $peer => $job) {
-                if ($job['startedAt'] && microtime(true) - $job['startedAt'] > 60) {
-                    unset($state['inFlight'][$peer]);
-                    $job['attempts']++;
-                    $job['startedAt'] = null;
-
-                    if ($job['attempts'] >= 3) {
-                        $state['failed']++;
-                    } else {
-                        $state['queue']->enqueue($job);
-                    }
-                }
-            }
-            \danog\MadelineProto\Tools::sleep(5);
-        }
-    });
-
-    for ($i = 0; $i < $concurrency; $i++) {
-        \Amp\async(function () use ($api, &$state, $chatId, $statusId, $total) {
-            while (!$state['cancel']) {
-                if ($state['queue']->isEmpty()) {
-                    $api->sleep(1);
-                    continue;
-                }
-
-                $job = $state['queue']->dequeue();
-
-                if ($job['availableAt'] > microtime(true)) {
-                    $state['queue']->enqueue($job);
-                    $api->sleep(0.5);
-                    continue;
-                }
-
-                $peer = $job['peer'];
-                $job['startedAt'] = microtime(true);
-                $state['inFlight'][$peer] = $job;
-
-                try {
-                    $file = __DIR__."/data/$peer/messages.txt";
-                    if (!file_exists($file)) {
-                        $state['failed']++;
-                        unset($state['inFlight'][$peer]);
-                        continue;
-                    }
-
-                    $msgIds = array_filter(
-                        array_map('intval', explode("\n", trim(\Amp\File\read($file))))
-                    );
-
-                    foreach ($msgIds as $mid) {
-                        if ($mid <= 0) continue;
-
-                        try {
-                            $api->messages->deleteMessages([
-                                'peer' => $peer,
-                                'id' => [$mid],
-                                'revoke' => true
-                            ]);
-
-                            // ===== עדכון פרוגרס מיד =====
-                            $processed = $state['deleted'] + $state['failed'];
-                            $pending = max(0, $total - $processed);
-                            $elapsed = microtime(true) - $state['startedAt'];
-                            $tps = $elapsed > 0 ? round($state['deleted'] / $elapsed, 2) : 0;
-
-                            $text =
-                                "<b>📊 Deleting All Broadcasts</b>\n\n".
-                                "<code>".$this->progressBar($processed, max(1,$total))."</code>\n\n".
-                                "✅ Deleted: {$state['deleted']} / $total\n".
-                                "❌ Failed: {$state['failed']}\n".
-                                "⏳ Pending: $pending\n".
-                                "⚡ TPS: {$tps} msg/s";
-
-                            try {
-                                $api->messages->editMessage([
-                                    'peer' => $chatId,
-                                    'id' => $statusId,
-                                    'message' => $text,
-                                    'parse_mode' => 'HTML'
-                                ]);
-                            } catch (\Throwable) {}
-
-                        } catch (\danog\MadelineProto\RPCErrorException $e) {
-                            $msg = $e->getMessage();
-
-                            if (preg_match('/FLOOD_WAIT_(\d+)/', $msg, $m)) {
-                                $state['flood']++;
-                                unset($state['inFlight'][$peer]);
-
-                                $job['attempts']++;
-                                $job['availableAt'] = microtime(true) + (int)$m[1];
-                                $job['startedAt'] = null;
-
-                                if ($job['attempts'] >= 3) $state['failed']++;
-                                else $state['queue']->enqueue($job);
-                                continue 2;
-                            }
-
-                            if (str_contains($msg, 'USER_IS_BLOCKED') || str_contains($msg, 'PEER_ID_INVALID')) {
-                                continue;
-                            }
-
-                            throw $e;
-                        }
-                    }
-                    $state['deleted']++;
-                    @unlink($file);
-                    unset($state['inFlight'][$peer]);
-
-                } catch (\Throwable) {
-                    unset($state['inFlight'][$peer]);
-                    if (++$job['attempts'] >= 3) $state['failed']++;
-                    else { $job['startedAt'] = null; $state['queue']->enqueue($job); }
-                }
-
-                $api->sleep(0.25);
-            }
-        });
-    }
-
-    while (!$state['cancel']) {
-        if ($state['queue']->isEmpty() && empty($state['inFlight'])) break;
-        $api->sleep(1);
-    }
-
-    $state['done'] = true;
-
-    $processed = $state['deleted'] + $state['failed'];
-    $elapsed = microtime(true) - $state['startedAt'];
-    $tps = $elapsed > 0 ? round($state['deleted'] / $elapsed, 2) : 0;
-
-    $finalText =
-        "<b>📊 Deleting All Broadcasts</b>\n\n".
-        "<code>".$this->progressBar($processed, max(1,$total))."</code>\n\n".
-        "✅ Deleted: {$state['deleted']} / $total\n".
-        "❌ Failed: {$state['failed']}\n".
-        ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
-
-    try {
-        $api->messages->editMessage([
-            'peer' => $chatId,
-            'id' => $statusId,
-            'message' => $finalText,
-            'parse_mode' => 'HTML'
-        ]);
-    } catch (\Throwable) {}
-
-    return $state;
-}
-*/
-
     public function deleteAllBroadcastsForAll(
         array $allUsers,
         $chatId,
@@ -1208,11 +1019,19 @@ class BroadcastManager
      * Last broadcast data
      */
     public function lastBroadcastData(): string|false {
-            if (file_exists(self::getDataDir() ."/LastBrodDATA.txt")) {
-                return \Amp\File\read(self::getDataDir() ."/LastBrodDATA.txt");
-            }else{
-                return false;
-            }
+        $dir = self::getDataDir();
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+
+        $path = $dir . "/LastBrodDATA.txt";
+
+        if (!file_exists($path)) {
+            return false;
+        }
+
+return \Amp\File\read($path);
     }
 
 }
