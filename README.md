@@ -132,6 +132,12 @@ if (!$manager->hasAllBroadcast()) echo "No all Broadcast to delete";
 print_r($manager->progress());
 ```
 
+Set data dir:
+
+```php
+BroadcastManager::setDataDir(__DIR__ . '/data');
+```
+
 ---
 
 ## 🧹 Delete Last Broadcast

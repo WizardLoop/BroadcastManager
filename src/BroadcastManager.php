@@ -23,10 +23,28 @@ class BroadcastManager
     private API $api;
     private ?array $currentBroadcastState = null;
     private array $albumTimers = [];
+    private static string $dataDir;
 
     public function __construct(API $api)
     {
         $this->api = $api;
+    }
+
+    /**
+     * Set data dir
+     */
+    public static function setDataDir(string $path): void {
+        self::$dataDir = rtrim($path, '/');
+    }
+
+    /**
+     * Get data dir
+     */
+    private static function getDataDir(): string {
+        if (!self::$dataDir) {
+            self::$dataDir = __DIR__ . '/../data';
+        }
+        return self::$dataDir;
     }
 
     /**
@@ -268,12 +286,12 @@ class BroadcastManager
         ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
 
     try { $api->messages->editMessage(['peer'=>$chatId,'id'=>$statusId,'message'=>$finalText,'parse_mode'=>'HTML']); } catch (\Throwable) {}
-    $dir1=__DIR__."/data";
+    $dir1= self::getDataDir();
     if(!is_dir($dir1))@mkdir($dir1,0777,true);
-    try { \Amp\File\write(__DIR__."$dir1/LastBrodDATA.txt",$finalText); } catch (\Throwable) {}
+    try { \Amp\File\write("$dir1/LastBrodDATA.txt",$finalText); } catch (\Throwable) {}
 
     foreach ($state['lastMessageIds'] as $peer=>$id) {
-        $dir=__DIR__."/data/$peer";
+        $dir = self::getDataDir() . "/$peer";
         if(!is_dir($dir))@mkdir($dir,0777,true);
 		try {
         $fh = \Amp\File\openFile("$dir/messages.txt", "a");
@@ -403,7 +421,7 @@ class BroadcastManager
                 $state['inFlight'][$peer] = $job;
 
                 try {
-                    $file = __DIR__."/data/$peer/lastBroadcast.txt";
+                    $file = self::getDataDir() ."/$peer/lastBroadcast.txt";
                     if (!file_exists($file)) {
 						$state['failed']++;
                         unset($state['inFlight'][$peer]);
@@ -760,7 +778,7 @@ class BroadcastManager
                 $userDeleted = false;
 
                 try {
-                    $file = __DIR__."/data/$peer/messages.txt";
+                    $file = self::getDataDir() ."/$peer/messages.txt";
                     if (!file_exists($file)) {
                         $state['failed']++;
                         unset($state['inFlight'][$peer]);
@@ -808,7 +826,7 @@ class BroadcastManager
                     if ($userDeleted) $state['deleted']++;
                     else $state['failed']++;
 
-                    $file2 = __DIR__."/data/$peer/lastBroadcast.txt";
+                    $file2 = self::getDataDir() ."/$peer/lastBroadcast.txt";
                     @unlink($file2);
                     @unlink($file);
                     unset($state['inFlight'][$peer]);
@@ -1091,10 +1109,13 @@ class BroadcastManager
     return $state;
 }
 
+    /**
+     * Progress bar
+     */
     private function progressBar(int $current, int $total): string {
         $len = 20;
-        $filled = (int) round($current / max($total,1) * $len);
-        return str_repeat('█',$filled).str_repeat('░',$len-$filled).' '.round(($current/$total)*100).'%';
+		$filled = (int) round($current / max($total,1) * $len);
+		return str_repeat('█',$filled).str_repeat('░',$len-$filled).' '.round(($current/max($total,1))*100).'%';
     }
 
     /**
@@ -1142,7 +1163,7 @@ class BroadcastManager
      * Check if there is a last broadcast message saved for deletion
      */
     public function hasLastBroadcast(): bool {
-        foreach (glob(__DIR__."/data/*/lastBroadcast.txt") as $file) {
+        foreach (glob(self::getDataDir() ."/*/lastBroadcast.txt") as $file) {
             if (file_exists($file) && trim(\Amp\File\read($file))) {
                 return true;
             }
@@ -1154,7 +1175,7 @@ class BroadcastManager
      * Check if there is a broadcast messages saved for deletion
      */
     public function hasAllBroadcast(): bool {
-        foreach (glob(__DIR__."/data/*/messages.txt") as $file) {
+        foreach (glob(self::getDataDir() ."/*/messages.txt") as $file) {
             if (file_exists($file) && trim(\Amp\File\read($file))) {
                 return true;
             }
@@ -1187,8 +1208,8 @@ class BroadcastManager
      * Last broadcast data
      */
     public function lastBroadcastData(): string|false {
-            if (file_exists(__DIR__."/data/LastBrodDATA.txt")) {
-                return \Amp\File\read(__DIR__."/data/LastBrodDATA.txt");
+            if (file_exists(self::getDataDir() ."/LastBrodDATA.txt")) {
+                return \Amp\File\read(self::getDataDir() ."/LastBrodDATA.txt");
             }else{
                 return false;
             }

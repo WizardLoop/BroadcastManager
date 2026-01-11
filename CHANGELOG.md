@@ -134,3 +134,9 @@ Added functionality to send initial status messages when gathering peers and sta
 * lastBroadcastData
 
 ---
+
+## [3.0.2] - 2026-01-11
+
+### Added:
+
+* setDataDir & getDataDir
