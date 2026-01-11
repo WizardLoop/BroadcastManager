@@ -806,6 +806,8 @@ class BroadcastManager
                     if ($userDeleted) $state['deleted']++;
                     else $state['failed']++;
 
+                    $file2 = __DIR__."/data/$peer/lastBroadcast.txt";
+                    @unlink($file2);
                     @unlink($file);
                     unset($state['inFlight'][$peer]);
 
