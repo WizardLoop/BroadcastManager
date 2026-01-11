@@ -124,3 +124,13 @@ Added functionality to send initial status messages when gathering peers and sta
 ### Fixed:
 * Better error handling for missing files or blocked users.
 * Proper cleanup of message files after deletion.
+
+---
+
+## [3.0.1] - 2026-01-11
+
+### Fixed:
+
+* lastBroadcastData
+
+---
