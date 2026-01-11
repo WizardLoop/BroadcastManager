@@ -268,7 +268,9 @@ class BroadcastManager
         ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
 
     try { $api->messages->editMessage(['peer'=>$chatId,'id'=>$statusId,'message'=>$finalText,'parse_mode'=>'HTML']); } catch (\Throwable) {}
-    try { \Amp\File\write(__DIR__.'/data/LastBrodDATA.txt',$finalText); } catch (\Throwable) {}
+    $dir1=__DIR__."/data";
+    if(!is_dir($dir1))@mkdir($dir1,0777,true);
+    try { \Amp\File\write(__DIR__."$dir1/LastBrodDATA.txt",$finalText); } catch (\Throwable) {}
 
     foreach ($state['lastMessageIds'] as $peer=>$id) {
         $dir=__DIR__."/data/$peer";
