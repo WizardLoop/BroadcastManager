@@ -135,7 +135,7 @@ Set data dir:
 ```php
 BroadcastManager::setDataDir(__DIR__ . '/data');
 ```
-_default is: __DIR__ . '../data'_
+_default is: __DIR__ . '/../data'_
 
 ---
 
