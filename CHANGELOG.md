@@ -151,7 +151,7 @@ Added functionality to send initial status messages when gathering peers and sta
 
 ---
 
-## [3.0.4] - 2026-01-11
+## [3.0.4] - 2026-01-13
 
 ### Added & Fixed:
 
