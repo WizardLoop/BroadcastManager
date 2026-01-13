@@ -102,14 +102,18 @@ use BroadcastTool\BroadcastManager;
 
 $manager = new BroadcastManager($api);
 
-$manager->broadcastWithProgress(
-    allUsers: $users,
-    messages: $messages,
-    chatId: $adminChatId,
-    filterType: 'users',
-    pin: true,
-    concurrency: 25
-);
+$manager->broadcastWithProgress($users, $messages, $adminChatId, true, 20);
+```
+
+---
+
+## Filer Peers
+
+```php
+$filterSub = $manager->filterPeers($users, 'users');
+$targets = $filterSub['targets']; # array
+$failed = $filterSub['failed']; # int
+$total = $filterSub['total']; # int
 ```
 
 ---
@@ -142,11 +146,7 @@ _default is: __DIR__ . '/../data'_
 ## 🧹 Delete Last Broadcast
 
 ```php
-$manager->deleteLastBroadcastForAll(
-    allUsers: $users,
-    chatId: $adminChatId,
-    concurrency: 20
-);
+$manager->deleteLastBroadcastForAll($users, $adminChatId, 20);
 ```
 
 ---
@@ -154,11 +154,7 @@ $manager->deleteLastBroadcastForAll(
 ## ♻️ Delete All Broadcast
 
 ```php
-$manager->deleteAllBroadcastsForAll(
-    allUsers: $users,
-    chatId: $adminChatId,
-    concurrency: 20
-);
+$manager->deleteAllBroadcastsForAll($users, $adminChatId, 20);
 ```
 
 ---
