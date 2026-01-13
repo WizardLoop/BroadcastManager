@@ -148,3 +148,12 @@ Added functionality to send initial status messages when gathering peers and sta
 ### Fixed:
 
 * Fix getDataDir() to handle uninitialized $dataDir
+
+---
+
+## [3.0.4] - 2026-01-13
+
+### Added & Fixed:
+
+* Extracted peer filtering from broadcast execution
+* Reduced unnecessary processing during broadcasts

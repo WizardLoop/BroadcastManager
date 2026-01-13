@@ -54,7 +54,6 @@ class BroadcastManager
         array $allUsers,
         array $messages,
         $chatId,
-        string $filterType = 'users',
         bool $pin = false,
         int $concurrency = 20
     ): array {
@@ -68,36 +67,12 @@ class BroadcastManager
     ]);
     $statusId = $api->extractMessageId($status);
 
-    /* ===== FILTER TARGETS ===== */
-    $allowedTypes = [
-        'all'      => ['user','bot','chat','supergroup','channel'],
-        'users'    => ['user','bot'],
-        'groups'   => ['chat','supergroup'],
-        'channels' => ['channel'],
-    ];
-
-    $targets = [];
-    $failedCount = 0;
-
-    foreach ($allUsers as $peer) {
-        try {
-            $info = $api->getInfo($peer);
-            $type = $info['type'] ?? 'user';
-            if (in_array($type, $allowedTypes[$filterType] ?? ['user','bot'], true)) {
-                $targets[] = (string)$peer;
-            }
-        } catch (\Throwable) {
-            if ($filterType === 'all') $targets[] = (string)$peer;
-            else $failedCount++;
-        }
-    }
-
-    $total = count($targets);
+    $total = count($allUsers);
 
     /* ===== STATE ===== */
     $state = [
         'sent' => 0,
-        'failed' => $failedCount,
+        'failed' => 0,
         'queue' => new \SplQueue(),
         'inFlight' => [],
         'lastMessageIds' => [],
@@ -110,7 +85,7 @@ class BroadcastManager
 /* ===== SET CURRENT BROADCAST STATE FOR PAUSE/CANCEL ===== */
     $this->currentBroadcastState = &$state;
 
-    foreach ($targets as $peer) {
+    foreach ($allUsers as $peer) {
         $state['queue']->enqueue([
             'peer' => $peer,
             'attempts' => 0,
@@ -711,7 +686,6 @@ class BroadcastManager
     public function unpinAllMessagesForAll(
         array $allUsers,
         $chatId,
-        string $filterType = 'users',
         int $concurrency = 20
     ): array {
     $api = $this->api;
@@ -724,37 +698,12 @@ class BroadcastManager
     ]);
     $statusId = $api->extractMessageId($status);
 
-    /* ===== FILTER TARGETS ===== */
-    $allowedTypesByFilter = [
-        'all' => ['user','bot','chat','supergroup','channel'],
-        'users' => ['user','bot'],
-        'groups' => ['chat','supergroup'],
-        'channels' => ['channel'],
-    ];
-
-    $targets = [];
-    $failedCount = 0;
-
-    foreach ($allUsers as $peer) {
-        try {
-            $info = $api->getInfo($peer);
-            $type = $info['type'] ?? 'user';
-
-            if (in_array($type, $allowedTypesByFilter[$filterType] ?? ['user','bot'], true)) {
-                $targets[] = (string)$peer;
-            }
-        } catch (\Throwable) {
-            if ($filterType === 'all') $targets[] = (string)$peer;
-            else $failedCount++;
-        }
-    }
-
-    $total = count($targets);
+    $total = count($allUsers);
 
     /* ===== STATE ===== */
     $state = [
         'unpin' => 0,
-        'failed' => $failedCount,
+        'failed' => 0,
         'flood' => 0,
         'queue' => new \SplQueue(),
         'inFlight' => [],
@@ -763,7 +712,7 @@ class BroadcastManager
         'startedAt' => microtime(true),
     ];
 
-    foreach ($targets as $peer) {
+    foreach ($allUsers as $peer) {
         $state['queue']->enqueue([
             'peer' => $peer,
             'attempts' => 0,
@@ -953,6 +902,7 @@ class BroadcastManager
     public function cancel(): void {
         if ($this->currentBroadcastState) {
             $this->currentBroadcastState['cancel'] = true;
+            $this->currentBroadcastState['inFlight'] = [];
         }
     }
 
@@ -1034,4 +984,44 @@ class BroadcastManager
 return \Amp\File\read($path);
     }
 
+    /**
+     * Filter peers
+     */
+    public function filterPeers(
+	    array $allUsers,
+        string $filterType = 'users'
+	): array {
+
+    $api = $this->api;
+
+    $allowedTypes = [
+        'all'      => ['user','chat','supergroup','channel'],
+        'users'    => ['user'],
+        'groups'   => ['chat','supergroup'],
+        'channels' => ['channel'],
+    ];
+
+    $targets = [];
+    $failedCount = 0;
+
+    foreach ($allUsers as $peer) {
+        try {
+            $info = $api->getInfo($peer);
+            $type = $info['type'] ?? 'user';
+            if (in_array($type, $allowedTypes[$filterType] ?? ['user'], true)) {
+                $targets[] = (string)$peer;
+            }
+        } catch (\Throwable) {
+            if ($filterType === 'all') $targets[] = (string)$peer;
+            else $failedCount++;
+        }
+    }
+
+    return [
+        'targets' => $targets,
+        'failed'  => $failedCount,
+        'total'   => count($targets)
+    ];
+
+    }
 }
