@@ -218,6 +218,16 @@ class BroadcastManager
 
                 } catch (\danog\MadelineProto\RPCErrorException $e) {
                     unset($state['inFlight'][$peer]);
+					            
+	            if ($e->rpc === 'INPUT_USER_DEACTIVATED' || 
+				    $e->rpc === 'USER_IS_BOT' || 
+					$e->rpc === 'CHAT_WRITE_FORBIDDEN' || 
+					$e->rpc === 'USER_IS_BLOCKED' ||
+					$e->rpc === 'PEER_ID_INVALID') {
+				    $state['failed']++;
+					continue;
+                }
+
                     if (preg_match('/FLOOD_WAIT_(\d+)/',$e->getMessage(),$m)) {
                         $job['attempts']++;
                         $job['availableAt']=microtime(true)+(int)$m[1];
