@@ -157,3 +157,11 @@ Added functionality to send initial status messages when gathering peers and sta
 
 * Extracted peer filtering from broadcast execution
 * Reduced unnecessary processing during broadcasts
+
+---
+
+## [3.0.5] - 2026-01-18
+
+### Added & Fixed:
+
+* Handle additional RPCErrorException cases
