@@ -165,3 +165,20 @@ Added functionality to send initial status messages when gathering peers and sta
 ### Added & Fixed:
 
 * Handle additional RPCErrorException cases
+
+---
+
+## [3.1.0] - 2026-04-13
+
+# Refactor BroadcastManager for improved functionality
+- Updated BroadcastManager class to improve functionality and code structure.
+- Added support for handling broadcast IDs, enhanced error handling, and refactored methods to accept optional chat IDs.
+
+### Added:
+- added `isActive()` to check active
+- added option to set chatId as null
+
+### Fixed:
+- fixed `progress()` to update progress state from all methods
+
+---
