@@ -8,6 +8,7 @@ Manage broadcasts efficiently: send messages, media albums, pin/unpin messages, 
 [![Packagist
 Version](https://img.shields.io/packagist/v/wizardloop/broadcastmanager)](https://packagist.org/packages/wizardloop/broadcastmanager)
 [![Packagist Downloads](https://img.shields.io/packagist/dt/wizardloop/broadcastmanager?color=blue)](https://packagist.org/packages/wizardloop/broadcastmanager)
+![CI](https://github.com/WizardLoop/BroadcastManager/actions/workflows/ci.yml/badge.svg)
 
 ---
 
@@ -58,29 +59,6 @@ Version](https://img.shields.io/packagist/v/wizardloop/broadcastmanager)](https:
 
 ---
 
-## 📁 Repository Structure
-
-```
-BroadcastManager/
-├── src/
-│   └── BroadcastManager.php
-├── data/
-│   └── .gitkeep
-├── composer.json
-├── README.md
-├── LICENSE
-└── CHANGELOG.md
-```
-
----
-
-## 💻 Requirements
-
-* [MadelineProto](https://docs.madelineproto.xyz/)
-* [amphp/amp](https://amphp.org/)
-
----
-
 ## ⚡ Installation
 
 ```bash
@@ -97,6 +75,10 @@ require 'vendor/autoload.php';
 
 ## 🚀 Usage Example
 
+---
+## Send Broadcast
+
+### 1) live progress update in message to admin:
 ```php
 use BroadcastTool\BroadcastManager;
 
@@ -105,10 +87,90 @@ $manager = new BroadcastManager($api);
 $manager->broadcastWithProgress($users, $messages, $adminChatId, true, 20);
 ```
 
+### 2) track on progress without message:
+This method returns an integer ID that can be used.
+
+```php
+use BroadcastTool\BroadcastManager;
+
+$manager = new BroadcastManager($api);
+
+$broadcastId = $manager->broadcastWithProgress($users, $messages, null, true, 20);
+
+/**
+ * Get progress (can be polled)
+ */
+$progress = $manager->progress($broadcastId);
+
+if ($progress !== null) {
+
+    // 📊 Core stats
+    $processed = $progress['processed'];
+    $success   = $progress['success'];
+    $failed    = $progress['failed'];
+    $pending   = $progress['pending'];
+    $flood     = $progress['flood'];
+
+    // 📈 Progress %
+    $progressPercent = $progress['progressPercent'];
+
+    // 📦 Breakdown
+    $sent    = $progress['breakdown']['sent'];
+    $deleted = $progress['breakdown']['deleted'];
+    $unpin   = $progress['breakdown']['unpin'];
+
+    // ⚙️ State
+    $done    = $progress['done'];
+    $paused  = $progress['paused'];
+    $cancel  = $progress['cancel'];
+
+    // ⏱ Timing
+    $startedAt = $progress['startedAt'];
+
+    /**
+     * Example usage
+     */
+    echo "Progress: {$progressPercent}%\n";
+    echo "Sent: {$sent}\n";
+    echo "Failed: {$failed}\n";
+
+    if ($done) {
+        echo "Broadcast finished!";
+    }
+
+    if ($paused) {
+        echo "Broadcast paused...";
+    }
+}
+```
+
+```php
+* progress return array|null {
+*   processed: int,           // total processed items (sent + deleted + unpin + failed)
+*   success: int,             // successful operations (sent + deleted + unpin)
+*   failed: int,              // failed operations count
+*   pending: int,             // remaining items in queue
+*   flood: int,               // FLOOD_WAIT occurrences
+*
+*   progressPercent: float,   // completion percentage (processed / total)
+*
+*   breakdown: array {
+*      sent: int,
+*      deleted: int,
+*      unpin: int
+*   },
+*
+*   done: bool,               // process finished
+*   paused: bool,            // process paused
+*   cancel: bool,            // process cancelled
+*
+*   startedAt: float         // microtime start timestamp
+* }
+```
+
 ---
 
 ## Filer Peers
-
 ```php
 $filterSub = $manager->filterPeers($users, 'users');
 $targets = $filterSub['targets']; # array
@@ -121,32 +183,32 @@ $total = $filterSub['total']; # int
 ## ⏸ Control Broadcasts
 
 ```php
-$manager->pause();
-$manager->resume();
-$manager->cancel();
+$manager->pause($broadcastId);
+$manager->resume($broadcastId);
+$manager->cancel($broadcastId);
 ```
 
-Check state:
+### Check state:
 ```php
-if ($manager->isPaused()) echo "Paused";
-if ($manager->isCancelled()) echo "Cancelled";
-if (!$manager->hasLastBroadcast()) echo "No last Broadcast do delete";
-if (!$manager->hasAllBroadcast()) echo "No all Broadcast to delete";
-print_r($manager->progress());
+if ($manager->isActive($broadcastId));
+if ($manager->isPaused($broadcastId));
+if ($manager->isCancelled($broadcastId));
+if (!$manager->hasLastBroadcast($broadcastId));
+if (!$manager->hasAllBroadcast($broadcastId));
+print_r($manager->progress($broadcastId));
 ```
 
-Set data dir:
+### Set data dir:
 ```php
-BroadcastManager::setDataDir(__DIR__ . '/data');
+BroadcastManager::setDataDir(__DIR__ . '/data'); // default: __DIR__ . '/../data'
 ```
-_default is: __DIR__ . '/../data'_
 
 ---
 
 ## 🧹 Delete Last Broadcast
 
 ```php
-$manager->deleteLastBroadcastForAll($users, $adminChatId, 20);
+$broadcastId = $manager->deleteLastBroadcastForAll($users, $adminChatId, 20);
 ```
 
 ---
@@ -154,7 +216,7 @@ $manager->deleteLastBroadcastForAll($users, $adminChatId, 20);
 ## ♻️ Delete All Broadcast
 
 ```php
-$manager->deleteAllBroadcastsForAll($users, $adminChatId, 20);
+$broadcastId = $manager->deleteAllBroadcastsForAll($users, $adminChatId, 20);
 ```
 
 ---
@@ -162,23 +224,23 @@ $manager->deleteAllBroadcastsForAll($users, $adminChatId, 20);
 ## 📊 Get Last Broadcast Data
 
 ```php
-$manager->lastBroadcastData();
+$broadcastId = $manager->lastBroadcastData();
 ```
 
 ---
 
 ## 📌 Pin / Unpin Messages
 
-Pin last broadcast automatically:
+## Pin last broadcast automatically:
 
 ```php
-$manager->broadcastWithProgress(..., pin: true);
+$broadcastId = $manager->broadcastWithProgress(..., pin: true);
 ```
 
-Unpin all messages:
+## Unpin all messages:
 
 ```php
-$manager->unpinAllMessagesForAll(...);
+$broadcastId = $manager->unpinAllMessagesForAll(...);
 ```
 
 ---
@@ -199,11 +261,11 @@ $message = [
 
 ## ⚙️ Advanced Options
 
-* **Concurrency** – Number of parallel workers.
-* **Filter Types** – 'users', 'groups', 'channels', 'all'
-* **Album Handling** – JSON-based albums with multiple media files.
-* **Retries & Delays** – Automatic retries with backoff.
-* **Progress Tracking** – Real-time broadcast stats with `progress()`.
+* **Concurrency** - Number of parallel workers.
+* **Filter Types** - 'users', 'groups', 'channels', 'all'
+* **Album Handling** - JSON-based albums with multiple media files.
+* **Retries & Delays** - Automatic retries with backoff.
+* **Progress Tracking** - Real-time broadcast stats with `progress()`.
 
 ---
 
@@ -219,7 +281,7 @@ $message = [
 
 ## 📄 License
 
-**GNU AGPL-3.0** — see [LICENSE](LICENSE).
+**GNU AGPL-3.0** - see [LICENSE](LICENSE).
 
 ---
 

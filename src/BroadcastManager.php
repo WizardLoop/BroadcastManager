@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Broadcast Manager
+ * Broadcast Manager Tool
  *
  * @author    - WizardLoop <wizardloop.com>
  * @copyright - WizardLoop <wizardloop.com>
@@ -22,7 +22,6 @@ class BroadcastManager
 {
     private API $api;
     private ?array $currentBroadcastState = null;
-    private array $albumTimers = [];
     private static string $dataDir = '';
 
     public function __construct(API $api)
@@ -32,14 +31,14 @@ class BroadcastManager
 
     /**
      * Set data dir
-     */
+    */
     public static function setDataDir(string $path): void {
         self::$dataDir = rtrim($path, '/');
     }
 
     /**
      * Get data dir
-     */
+    */
     private static function getDataDir(): string {
         if (!self::$dataDir) {
             self::$dataDir = __DIR__ . '/../data';
@@ -48,29 +47,39 @@ class BroadcastManager
     }
 
     /**
-     * Broadcast messages to users/channels with progress tracking
+     * Send broadcast.
+     *
+     * @return integer ID that can be used
      */
     public function broadcastWithProgress(
         array $allUsers,
         array $messages,
-        $chatId,
+        $chatId = null,
         bool $pin = false,
         int $concurrency = 20
-    ): array {
+    ): string {
     $api = $this->api;
 
+    $statusId = null;
+    if ($chatId) {
+    try {
     /* ===== INIT STATUS ===== */
-    $status = $api->messages->sendMessage([
+        $status = $api->messages->sendMessage([
         'peer' => $chatId,
         'message' => '⌛ GATHERING PEERS...',
         'parse_mode' => 'HTML'
     ]);
     $statusId = $api->extractMessageId($status);
+    } catch (\Throwable) { }
+    }
 
     $total = count($allUsers);
 
+    $broadcastId = bin2hex(random_bytes(8));
+
     /* ===== STATE ===== */
     $state = [
+        'type' => 'send',
         'sent' => 0,
         'failed' => 0,
         'queue' => new \SplQueue(),
@@ -82,8 +91,7 @@ class BroadcastManager
         'startedAt' => microtime(true),
     ];
 
-/* ===== SET CURRENT BROADCAST STATE FOR PAUSE/CANCEL ===== */
-    $this->currentBroadcastState = &$state;
+    $this->currentBroadcastState[$broadcastId] = $state;
 
     foreach ($allUsers as $peer) {
         $state['queue']->enqueue([
@@ -113,7 +121,7 @@ class BroadcastManager
                 ($state['paused'] ? "\n⏸ <b>Paused</b>" : '').
                 ($state['cancel'] ? "\n🛑 <b>Cancelled</b>" : '');
 
-            if ($text !== $last) {
+            if ($chatId && $statusId && $text !== $last) {
                 try {
                     $api->messages->editMessage([
                         'peer' => $chatId,
@@ -270,14 +278,17 @@ class BroadcastManager
         "⚡ TPS: {$tps} msg/s\n".
         ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
 
-    try { $api->messages->editMessage(['peer'=>$chatId,'id'=>$statusId,'message'=>$finalText,'parse_mode'=>'HTML']); } catch (\Throwable) {}
-    $dir1= self::getDataDir();
-    if(!is_dir($dir1))@mkdir($dir1,0777,true);
+    if ($chatId) {
+        try { $api->messages->editMessage(['peer'=>$chatId,'id'=>$statusId,'message'=>$finalText,'parse_mode'=>'HTML']); } catch (\Throwable) {}
+    }
+
+    $dir1 = self::getDataDir();
+    try { if(!is_dir($dir1))@mkdir($dir1,0777,true); } catch (\Throwable) {}
     try { \Amp\File\write("$dir1/LastBrodDATA.txt",$finalText); } catch (\Throwable) {}
 
     foreach ($state['lastMessageIds'] as $peer=>$id) {
         $dir = self::getDataDir() . "/$peer";
-        if(!is_dir($dir))@mkdir($dir,0777,true);
+        try { if(!is_dir($dir))@mkdir($dir,0777,true); } catch (\Throwable) {}
 		try {
         $fh = \Amp\File\openFile("$dir/messages.txt", "a");
         $fh->write((string)$id . "\n");
@@ -286,22 +297,28 @@ class BroadcastManager
         try{\Amp\File\write("$dir/lastBroadcast.txt",$id);}catch(\Throwable){}
     }
 
-    return $state;
+    $this->currentBroadcastState[$broadcastId] = $state;
+    return $broadcastId;
 }
 
     /**
-     * Delete last broadcast message for all users
+     * Deletes the last broadcast message for all users.
+     *
+     * @return integer ID that can be used
      */
     public function deleteLastBroadcastForAll(
         array $allUsers,
-        $chatId,
+        $chatId = null,
         int $concurrency = 20
-    ): array {
+    ): string {
     $api = $this->api;
     $total = count($allUsers);
 
+    $broadcastId = bin2hex(random_bytes(8));
+
     /* ===== STATE ===== */
     $state = [
+        'type' => 'deletelast',
         'deleted' => 0,
         'failed' => 0,
         'flood' => 0,
@@ -312,6 +329,8 @@ class BroadcastManager
         'startedAt' => microtime(true),
     ];
 
+    $this->currentBroadcastState[$broadcastId] = $state;
+
     foreach ($allUsers as $peer) {
         $state['queue']->enqueue([
             'peer' => (string)$peer,
@@ -321,6 +340,9 @@ class BroadcastManager
         ]);
     }
 
+    $statusId = null;
+    if ($chatId) {
+    try {
     /* ===== STATUS MESSAGE ===== */
     $status = $api->messages->sendMessage([
         'peer' => $chatId,
@@ -328,6 +350,8 @@ class BroadcastManager
         'parse_mode' => 'HTML'
     ]);
     $statusId = $api->extractMessageId($status);
+    } catch (\Throwable) { }
+	}
 
     /* ===== PROGRESS LOOP ===== */
     \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
@@ -347,7 +371,7 @@ class BroadcastManager
                 "⚡ TPS: {$tps} msg/s".
                 ($state['cancel'] ? "\n🛑 <b>Cancelled</b>" : '');
 
-            if ($text !== $last) {
+            if ($chatId && $statusId && $text !== $last) {
                 try {
                     $api->messages->editMessage([
                         'peer' => $chatId,
@@ -482,6 +506,7 @@ class BroadcastManager
         "❌ Failed: {$state['failed']}\n".
         ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
 
+    if ($chatId) { 
     try {
         $api->messages->editMessage([
             'peer' => $chatId,
@@ -490,22 +515,29 @@ class BroadcastManager
             'parse_mode' => 'HTML'
         ]);
     } catch (\Throwable) {}
+    }
 
-    return $state;
+    $this->currentBroadcastState[$broadcastId] = $state;
+    return $broadcastId;
 }
 
     /**
-     * Delete all broadcasts message for all users
+     * Deletes all broadcast message for all users.
+     *
+     * @return integer ID that can be used
      */
     public function deleteAllBroadcastsForAll(
         array $allUsers,
-        $chatId,
+        $chatId = null,
         int $concurrency = 20
-    ): array {
+    ): string {
     $api = $this->api;
     $total = count($allUsers);
 
+    $broadcastId = bin2hex(random_bytes(8));
+
     $state = [
+        'type' => 'deleteall',
         'deleted' => 0,
         'failed' => 0,
         'flood' => 0,
@@ -516,6 +548,8 @@ class BroadcastManager
         'startedAt' => microtime(true),
     ];
 
+    $this->currentBroadcastState[$broadcastId] = $state;
+
     foreach ($allUsers as $peer) {
         $state['queue']->enqueue([
             'peer' => (string)$peer,
@@ -525,12 +559,17 @@ class BroadcastManager
         ]);
     }
 
+    $statusId = null;
+    if ($chatId) {
+    try {
     $status = $api->messages->sendMessage([
         'peer' => $chatId,
         'message' => "⌛ Deleting all broadcasts...",
         'parse_mode' => 'HTML'
     ]);
     $statusId = $api->extractMessageId($status);
+    } catch (\Throwable) { }
+	}
 
     \Amp\async(function () use (&$state) {
         while (!$state['done']) {
@@ -623,8 +662,8 @@ class BroadcastManager
                     else $state['failed']++;
 
                     $file2 = self::getDataDir() ."/$peer/lastBroadcast.txt";
-                    @unlink($file2);
-                    @unlink($file);
+                    try { @unlink($file2); } catch (\Throwable) { }
+                    try { @unlink($file); } catch (\Throwable) { }
                     unset($state['inFlight'][$peer]);
 
                     $processed = $state['deleted'] + $state['failed'];
@@ -640,6 +679,7 @@ class BroadcastManager
                         "⏳ Pending: $pending\n".
                         "⚡ TPS: {$tps} msg/s";
 
+                   if ($chatId) {
                     try {
                         $api->messages->editMessage([
                             'peer' => $chatId,
@@ -648,6 +688,7 @@ class BroadcastManager
                             'parse_mode' => 'HTML'
                         ]);
                     } catch (\Throwable) {}
+                   }
 
                 } catch (\Throwable) {
                     unset($state['inFlight'][$peer]);
@@ -678,6 +719,7 @@ class BroadcastManager
         "❌ Failed: {$state['failed']}\n".
         ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
 
+    if ($chatId) {
     try {
         $api->messages->editMessage([
             'peer' => $chatId,
@@ -686,20 +728,27 @@ class BroadcastManager
             'parse_mode' => 'HTML'
         ]);
     } catch (\Throwable) {}
+	}
 
-    return $state;
+    $this->currentBroadcastState[$broadcastId] = $state;
+    return $broadcastId;
 }
 
     /**
      * Unpin all messages for all users
+     *
+     * @return integer ID that can be used
      */
     public function unpinAllMessagesForAll(
         array $allUsers,
-        $chatId,
+        $chatId = null,
         int $concurrency = 20
-    ): array {
+    ): string {
     $api = $this->api;
 
+    $statusId = null;
+    if ($chatId) {
+    try {
     /* ===== STATUS MESSAGE ===== */
     $status = $api->messages->sendMessage([
         'peer' => $chatId,
@@ -707,11 +756,16 @@ class BroadcastManager
         'parse_mode' => 'HTML'
     ]);
     $statusId = $api->extractMessageId($status);
+    } catch (\Throwable) { }
+	}
 
     $total = count($allUsers);
 
+    $broadcastId = bin2hex(random_bytes(8));
+
     /* ===== STATE ===== */
     $state = [
+        'type' => 'unpin',
         'unpin' => 0,
         'failed' => 0,
         'flood' => 0,
@@ -722,6 +776,8 @@ class BroadcastManager
         'startedAt' => microtime(true),
     ];
 
+    $this->currentBroadcastState[$broadcastId] = $state;
+
     foreach ($allUsers as $peer) {
         $state['queue']->enqueue([
             'peer' => $peer,
@@ -731,12 +787,16 @@ class BroadcastManager
         ]);
     }
 
+    if ($chatId) {
+    try {
     $api->messages->editMessage([
         'peer' => $chatId,
         'id' => $statusId,
         'message' => "📌⌛ Starting unpin for all subscribers...",
         'parse_mode' => 'HTML'
     ]);
+    } catch (\Throwable) { }
+	}
 
     /* ===== PROGRESS LOOP ===== */
     \Amp\async(function () use ($api, $chatId, $statusId, &$state, $total) {
@@ -757,7 +817,7 @@ class BroadcastManager
                 "⚡ TPS: {$tps} msg/s".
                 ($state['cancel'] ? "\n🛑 <b>Cancelled</b>" : '');
 
-            if ($text !== $last) {
+            if ($chatId && $statusId && $text !== $last) {
                 try {
                     $api->messages->editMessage([
                         'peer' => $chatId,
@@ -867,6 +927,7 @@ class BroadcastManager
         "❌ Failed: {$state['failed']}\n".
         ($state['cancel'] ? "🛑 <b>Cancelled</b>" : "✅ <b>Finished</b>");
 
+    if ($chatId) {
     try {
         $api->messages->editMessage([
             'peer' => $chatId,
@@ -875,8 +936,10 @@ class BroadcastManager
             'parse_mode' => 'HTML'
         ]);
     } catch (\Throwable) {}
+    }
 
-    return $state;
+    $this->currentBroadcastState[$broadcastId] = $state;
+    return $broadcastId;
 }
 
     /**
@@ -891,43 +954,62 @@ class BroadcastManager
     /**
      * Pause running broadcast
      */
-    public function pause(): void {
-        if ($this->currentBroadcastState) {
-            $this->currentBroadcastState['paused'] = true;
+    public function pause(string $id): void {
+        if (isset($this->currentBroadcastState[$id])) {
+            $this->currentBroadcastState[$id]['paused'] = true;
         }
     }
 
     /**
      * Resume running broadcast
      */
-    public function resume(): void {
-        if ($this->currentBroadcastState) {
-            $this->currentBroadcastState['paused'] = false;
+    public function resume(string $id): void {
+        if (isset($this->currentBroadcastState[$id])) {
+            $this->currentBroadcastState[$id]['paused'] = false;
         }
     }
 
     /**
      * cancel running broadcast
      */
-    public function cancel(): void {
-        if ($this->currentBroadcastState) {
-            $this->currentBroadcastState['cancel'] = true;
-            $this->currentBroadcastState['inFlight'] = [];
+    public function cancel(string $id): void {
+        if (isset($this->currentBroadcastState[$id])) {
+            $this->currentBroadcastState[$id]['cancel'] = true;
+            $this->currentBroadcastState[$id]['inFlight'] = [];
         }
     }
 
     /**
      * Check if broadcast is paused
      */
-    public function isPaused(): bool {
-        return $this->currentBroadcastState['paused'] ?? false;
+    public function isPaused(string $id): bool {
+        return $this->currentBroadcastState[$id]['paused'] ?? false;
     }
 
     /**
      * Check if broadcast is cancelled
      */
-    public function isCancelled(): bool {
-        return $this->currentBroadcastState['cancel'] ?? false;
+    public function isCancelled(string $id): bool {
+        return $this->currentBroadcastState[$id]['cancel'] ?? false;
+    }
+
+    /**
+     * Check if broadcast is active
+     */
+    public function isActive(?string $id = null): bool {
+        if (!$id || !isset($this->currentBroadcastState[$id])) {
+            return false;
+        }
+
+        $state = $this->currentBroadcastState[$id];
+
+        if (!$state) return false;
+
+        return (
+            empty($state['done']) &&
+            empty($state['cancel']) &&
+            empty($state['paused'])
+        );
     }
 
     /**
@@ -955,23 +1037,97 @@ class BroadcastManager
     }
 
     /**
-     * Get current broadcast progress
+     * normalize broadcast state
      */
-    public function progress(): ?array {
-        if (!$this->currentBroadcastState) return null;
+    private function normalizeBroadcastState(array $state): array {
+        return [
+            'sent'      => $state['sent'] ?? 0,
+            'deleted'   => $state['deleted'] ?? 0,
+            'unpin'     => $state['unpin'] ?? 0,
+            'failed'    => $state['failed'] ?? 0,
+            'flood'     => $state['flood'] ?? 0,
 
-        $state = $this->currentBroadcastState;
-        $processed = $state['sent'] + $state['failed'];
-        $pending = ($state['queue'] ? $state['queue']->count() : 0);
+            'queue'     => $state['queue'] ?? null,
+            'inFlight'  => $state['inFlight'] ?? [],
+
+            'done'      => $state['done'] ?? false,
+            'paused'    => $state['paused'] ?? false,
+            'cancel'    => $state['cancel'] ?? false,
+
+            'startedAt' => $state['startedAt'] ?? null,
+        ];
+    }
+
+    /**
+     * Get current broadcast progress
+     *
+     * @return array|null {
+     *   processed: int,           // total processed items (sent + deleted + unpin + failed)
+     *   success: int,             // successful operations (sent + deleted + unpin)
+     *   failed: int,              // failed operations count
+     *   pending: int,             // remaining items in queue
+     *   flood: int,               // FLOOD_WAIT occurrences
+     *
+     *   progressPercent: float,   // completion percentage (processed / total)
+     *
+     *   breakdown: array {
+     *      sent: int,
+     *      deleted: int,
+     *      unpin: int
+     *   },
+     *
+     *   done: bool,               // process finished
+     *   paused: bool,            // process paused
+     *   cancel: bool,            // process cancelled
+     *
+     *   startedAt: float         // microtime start timestamp
+     * }
+    */
+    public function progress(?string $id = null): ?array {
+        if (!$id || !isset($this->currentBroadcastState[$id])) {
+            return null;
+        }
+
+        $state = $this->normalizeBroadcastState($this->currentBroadcastState[$id]);
+
+        $sent    = (int)($state['sent'] ?? 0);
+        $deleted = (int)($state['deleted'] ?? 0);
+        $unpin   = (int)($state['unpin'] ?? 0);
+        $failed  = (int)($state['failed'] ?? 0);
+        $flood   = (int)($state['flood'] ?? 0);
+
+        $processed = $sent + $deleted + $unpin + $failed;
+        $success   = $sent + $deleted + $unpin;
+
+        $pending = ($state['queue'] instanceof \SplQueue)
+            ? $state['queue']->count()
+            : 0;
+
+        $total = $processed + $pending;
+
+        $progressPercent = $total > 0
+            ? round(($processed / $total) * 100, 2)
+            : 0;
 
         return [
-            'sent' => $state['sent'],
-            'failed' => $state['failed'],
-            'flood' => $state['flood'] ?? 0,
-            'pending' => $pending,
-            'done' => $state['done'] ?? false,
-            'paused' => $state['paused'] ?? false,
-            'cancelled' => $state['cancel'] ?? false,
+            'processed' => $processed,
+            'success'   => $success,
+            'failed'    => $failed,
+            'pending'   => $pending,
+            'flood'     => $flood,
+
+            'progressPercent' => $progressPercent,
+
+            'breakdown' => [
+                'sent'    => $sent,
+                'deleted' => $deleted,
+                'unpin'   => $unpin,
+            ],
+
+            'done'      => (bool)($state['done'] ?? false),
+            'paused'    => (bool)($state['paused'] ?? false),
+            'cancel'    => (bool)($state['cancel'] ?? false),
+            'startedAt' => $state['startedAt'] ?? null,
         ];
     }
 
@@ -991,11 +1147,18 @@ class BroadcastManager
             return false;
         }
 
-return \Amp\File\read($path);
+        return \Amp\File\read($path);
     }
 
     /**
      * Filter peers
+     * allowedTypes: all / users / groups / channels
+     *
+     * @return array {
+     *   targets: array,        // filtered peers
+     *   failed: int,          // count of failed
+     *   total: int,          // count filtered peers
+     * }
      */
     public function filterPeers(
 	    array $allUsers,
@@ -1034,4 +1197,5 @@ return \Amp\File\read($path);
     ];
 
     }
+
 }
