@@ -8,6 +8,7 @@ Manage broadcasts efficiently: send messages, media albums, pin/unpin messages, 
 [![Packagist
 Version](https://img.shields.io/packagist/v/wizardloop/broadcastmanager)](https://packagist.org/packages/wizardloop/broadcastmanager)
 [![Packagist Downloads](https://img.shields.io/packagist/dt/wizardloop/broadcastmanager?color=blue)](https://packagist.org/packages/wizardloop/broadcastmanager)
+![CI](https://github.com/WizardLoop/BroadcastManager/actions/workflows/ci.yml/badge.svg)
 
 ---
 
