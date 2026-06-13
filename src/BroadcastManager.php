@@ -190,7 +190,7 @@ class BroadcastManager
         string $newText,
         $chatId = null,
         ?array $buttons = null,
-        ?array $media = null,
+        $media = null,
         int $concurrency = self::DEFAULT_CONCURRENCY,
         string $parseMode = 'HTML',
         ?string $broadcastId = null
