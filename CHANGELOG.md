@@ -212,3 +212,22 @@ Added functionality to send initial status messages when gathering peers and sta
 - Workers not stopping after `done`.
 - Unsafe watchdog behavior that could duplicate sends.
 - Concurrent progress edits in `deleteAllBroadcastsForAll()`.
+
+---
+
+## [3.2.1] - 2026-06-13
+
+### Added
+
+- Added support for editing last broadcast messages with media loaded from `data/{adminId}/media.txt`.
+- Added compatibility for passing saved media values / `botApiFileId` into `editLastBroadcastForAll()`.
+
+### Changed
+
+- Relaxed the `$media` parameter in `BroadcastManager::editLastBroadcastForAll()` so it is no longer limited to `?array`.
+- Edit-last-broadcast flow can now reuse the same saved media format used by regular broadcast sending.
+
+### Notes
+
+- Passing `null` as media keeps the existing media unchanged.
+- Passing a saved media value attempts to update the edited message media/caption.
