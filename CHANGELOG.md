@@ -182,3 +182,33 @@ Added functionality to send initial status messages when gathering peers and sta
 - fixed `progress()` to update progress state from all methods
 
 ---
+
+## [3.2.0] - 2026-06-13
+
+### Added
+
+- Edit last broadcast message with `editLastBroadcastForAll()`.
+- Optional `broadcastId` targeting for editing or deleting the last message of a specific broadcast.
+- Metadata peer loading for targeted edit/delete calls when `allUsers` is empty and `broadcastId` is provided.
+- Pause/resume/cancel inline controls on live broadcast status messages.
+- Scheduled broadcasts with durable jobs and runner methods.
+- Self-destruct broadcasts with a `0` to `48` hour delay.
+- Persisted per-broadcast metadata in `data/broadcasts/{broadcastId}.json`.
+- Scheduled and self-destruct job runners.
+- Internal error logging to `data/broadcast-errors.log`.
+
+### Changed
+
+- Safer state handling using shared state references by broadcast id.
+- Safer cancel behavior: `cancel()` now marks cancellation without clearing in-flight requests.
+- `progress()` now includes edit, scheduled, self-destruct, total, elapsed, and TPS fields.
+- Message IDs are saved during broadcast after each successful peer instead of only at the end.
+- `editLastBroadcastForAll()` and `deleteLastBroadcastForAll()` can use persisted broadcast metadata instead of only legacy `lastBroadcast.txt`.
+- `deleteAllBroadcastsForAll()` now uses one progress loop instead of concurrent progress edits from workers.
+
+### Fixed
+
+- Pause/resume/cancel state reference issue.
+- Workers not stopping after `done`.
+- Unsafe watchdog behavior that could duplicate sends.
+- Concurrent progress edits in `deleteAllBroadcastsForAll()`.
