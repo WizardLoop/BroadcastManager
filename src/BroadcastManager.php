@@ -23,8 +23,15 @@ use Throwable;
 class BroadcastManager
 {
     private const MAX_ATTEMPTS = 3;
-    private const DEFAULT_CONCURRENCY = 20;
-    private const MAX_CONCURRENCY = 50;
+    private const DEFAULT_CONCURRENCY = 10;
+    private const MAX_CONCURRENCY = 30;
+    private const PROGRESS_UPDATE_INTERVAL = 5.0;
+    private const WORKER_IDLE_SLEEP = 1.0;
+    private const WORKER_RETRY_SLEEP = 1.0;
+    private const WORKER_PAUSED_SLEEP = 1.5;
+    private const WORKER_AFTER_JOB_SLEEP = 0.75;
+    private const SEND_MESSAGE_SLEEP = 0.35;
+    private const SEND_CHUNK_SLEEP = 0.75;
 
     private const SEND_HARD_FAIL_RPCS = [
         'INPUT_USER_DEACTIVATED',
@@ -919,12 +926,12 @@ class BroadcastManager
             \Amp\async(function () use (&$state, $handler, $hardFailRpcs, $rpcHandler, $retryThrowable): void {
                 while (!$state['cancel'] && !$state['done']) {
                     if ($state['queue']->isEmpty()) {
-                        $this->api->sleep(0.5);
+                        $this->api->sleep(self::WORKER_IDLE_SLEEP);
                         continue;
                     }
 
                     if ($state['paused']) {
-                        $this->api->sleep(1);
+                        $this->api->sleep(self::WORKER_PAUSED_SLEEP);
                         continue;
                     }
 
@@ -932,12 +939,12 @@ class BroadcastManager
 
                     if (($job['availableAt'] ?? 0) > microtime(true)) {
                         $state['queue']->enqueue($job);
-                        $this->api->sleep(0.5);
+                        $this->api->sleep(self::WORKER_RETRY_SLEEP);
                         continue;
                     }
 
                     while ($state['paused'] && !$state['cancel'] && !$state['done']) {
-                        $this->api->sleep(1);
+                        $this->api->sleep(self::WORKER_PAUSED_SLEEP);
                     }
 
                     if ($state['cancel'] || $state['done']) {
@@ -981,7 +988,7 @@ class BroadcastManager
                         }
                     }
 
-                    $this->api->sleep(0.25);
+                    $this->api->sleep(self::WORKER_AFTER_JOB_SLEEP);
                 }
             });
         }
@@ -1093,6 +1100,8 @@ class BroadcastManager
                         $messageIds[] = $messageId;
                     }
                 }
+
+                $this->api->sleep(self::SEND_CHUNK_SLEEP);
             }
 
             return $messageIds;
@@ -1115,6 +1124,8 @@ class BroadcastManager
             if ($messageId > 0) {
                 $messageIds[] = $messageId;
             }
+
+            $this->api->sleep(self::SEND_MESSAGE_SLEEP);
         }
 
         return $messageIds;
@@ -1642,13 +1653,13 @@ class BroadcastManager
 
         $id = (string) $state['id'];
         $toggleAction = !empty($state['paused']) ? 'resume' : 'pause';
-        $toggleText = !empty($state['paused']) ? '▶️ המשך' : '⏸ השהייה';
+        $toggleText = !empty($state['paused']) ? 'Resume' : 'Pause';
 
         return [
             'inline_keyboard' => [
                 [
                     ['text' => $toggleText, 'callback_data' => 'bm:' . $toggleAction . ':' . $id],
-                    ['text' => '🛑 ביטול', 'callback_data' => 'bm:cancel:' . $id],
+                    ['text' => 'Cancel', 'callback_data' => 'bm:cancel:' . $id],
                 ],
             ],
         ];
@@ -1710,6 +1721,20 @@ class BroadcastManager
 
                         $this->api->messages->editMessage($payload);
                         $last = $fingerprint;
+                    } catch (RPCErrorException $e) {
+                        if (
+                            ($e->rpc ?? '') === 'MESSAGE_NOT_MODIFIED'
+                            || str_contains($e->getMessage(), 'MESSAGE_NOT_MODIFIED')
+                        ) {
+                            $last = $fingerprint;
+                            $this->api->sleep(self::PROGRESS_UPDATE_INTERVAL);
+                            continue;
+                        }
+
+                        if ($loggedFailures < 3) {
+                            $loggedFailures++;
+                            $this->logError('Failed to update status message.', $e);
+                        }
                     } catch (Throwable $e) {
                         if ($loggedFailures < 3) {
                             $loggedFailures++;
@@ -1718,7 +1743,7 @@ class BroadcastManager
                     }
                 }
 
-                $this->api->sleep(1);
+                $this->api->sleep(self::PROGRESS_UPDATE_INTERVAL);
             }
         });
     }
@@ -1742,6 +1767,15 @@ class BroadcastManager
             }
 
             $this->api->messages->editMessage($payload);
+        } catch (RPCErrorException $e) {
+            if (
+                ($e->rpc ?? '') === 'MESSAGE_NOT_MODIFIED'
+                || str_contains($e->getMessage(), 'MESSAGE_NOT_MODIFIED')
+            ) {
+                return;
+            }
+
+            $this->logError('Failed to edit final status message.', $e);
         } catch (Throwable $e) {
             $this->logError('Failed to edit final status message.', $e);
         }
