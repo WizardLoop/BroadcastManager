@@ -1,7 +1,7 @@
 # BroadcastManager
 
 **High-Performance Telegram Broadcast Manager** for [MadelineProto](https://docs.madelineproto.xyz/).
-Manage Telegram broadcasts efficiently: send text, media, albums, inline buttons, pin/unpin messages, delete broadcasts, edit broadcast, schedule broadcasts, run self-destruct deletion jobs, and track live progress.
+Manage Telegram broadcasts efficiently: send text, media, albums, inline buttons, pin/unpin messages, delete previous broadcasts, edit the last broadcast, schedule broadcasts, run self-destruct deletion jobs, and track live progress.
 
 [![AGPL License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Made with PHP](https://img.shields.io/badge/Made%20with-PHP-blue)](https://github.com/WizardLoop/BroadcastManager)
@@ -94,9 +94,11 @@ $progress = $manager->progress($broadcastId);
 Concurrency is clamped internally:
 
 * Minimum: `1`
-* Maximum: `50`
-* Default: `20`
+* Maximum: `30`
+* Default: `10`
 * Recommended examples: `10`
+
+Live status messages are updated at most once every `5` seconds and once again when the operation finishes.
 
 ---
 
@@ -578,7 +580,7 @@ public function broadcastWithProgress(
     array $messages,
     $chatId = null,
     bool $pin = false,
-    int $concurrency = 20,
+    int $concurrency = 10,
     ?int $selfDestructHours = null
 ): string;
 
@@ -587,8 +589,8 @@ public function editLastBroadcastForAll(
     string $newText,
     $chatId = null,
     ?array $buttons = null,
-    ?array $media = null,
-    int $concurrency = 20,
+    $media = null,
+    int $concurrency = 10,
     string $parseMode = 'HTML',
     ?string $broadcastId = null
 ): string;
@@ -599,7 +601,7 @@ public function scheduleBroadcastForAll(
     int $scheduledAt,
     $chatId = null,
     bool $pin = false,
-    int $concurrency = 20,
+    int $concurrency = 10,
     ?int $selfDestructHours = null
 ): string;
 
@@ -610,11 +612,11 @@ public function listScheduledBroadcasts(): array;
 public function deleteLastBroadcastForAll(
     array $allUsers,
     $chatId = null,
-    int $concurrency = 20,
+    int $concurrency = 10,
     ?string $broadcastId = null
 ): string;
-public function deleteAllBroadcastsForAll(array $allUsers, $chatId = null, int $concurrency = 20): string;
-public function unpinAllMessagesForAll(array $allUsers, $chatId = null, int $concurrency = 20): string;
+public function deleteAllBroadcastsForAll(array $allUsers, $chatId = null, int $concurrency = 10): string;
+public function unpinAllMessagesForAll(array $allUsers, $chatId = null, int $concurrency = 10): string;
 
 public function runDueSelfDestructJobs(): array;
 public function cancelSelfDestructJob(string $jobId): bool;
