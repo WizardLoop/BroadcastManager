@@ -130,7 +130,6 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.0.1] - 2026-01-11
 
 ### Fixed:
-
 * lastBroadcastData
 
 ---
@@ -138,7 +137,6 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.0.2] - 2026-01-11
 
 ### Added:
-
 * setDataDir & getDataDir
 
 ---
@@ -146,7 +144,6 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.0.3] - 2026-01-11
 
 ### Fixed:
-
 * Fix getDataDir() to handle uninitialized $dataDir
 
 ---
@@ -154,7 +151,6 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.0.4] - 2026-01-13
 
 ### Added & Fixed:
-
 * Extracted peer filtering from broadcast execution
 * Reduced unnecessary processing during broadcasts
 
@@ -163,7 +159,6 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.0.5] - 2026-01-18
 
 ### Added & Fixed:
-
 * Handle additional RPCErrorException cases
 
 ---
@@ -186,7 +181,6 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.2.0] - 2026-06-13
 
 ### Added
-
 - Edit last broadcast message with `editLastBroadcastForAll()`.
 - Optional `broadcastId` targeting for editing or deleting the last message of a specific broadcast.
 - Metadata peer loading for targeted edit/delete calls when `allUsers` is empty and `broadcastId` is provided.
@@ -198,7 +192,6 @@ Added functionality to send initial status messages when gathering peers and sta
 - Internal error logging to `data/broadcast-errors.log`.
 
 ### Changed
-
 - Safer state handling using shared state references by broadcast id.
 - Safer cancel behavior: `cancel()` now marks cancellation without clearing in-flight requests.
 - `progress()` now includes edit, scheduled, self-destruct, total, elapsed, and TPS fields.
@@ -207,7 +200,6 @@ Added functionality to send initial status messages when gathering peers and sta
 - `deleteAllBroadcastsForAll()` now uses one progress loop instead of concurrent progress edits from workers.
 
 ### Fixed
-
 - Pause/resume/cancel state reference issue.
 - Workers not stopping after `done`.
 - Unsafe watchdog behavior that could duplicate sends.
@@ -218,16 +210,42 @@ Added functionality to send initial status messages when gathering peers and sta
 ## [3.2.1] - 2026-06-13
 
 ### Added
-
 - Added support for editing last broadcast messages with media loaded from `data/{adminId}/media.txt`.
 - Added compatibility for passing saved media values / `botApiFileId` into `editLastBroadcastForAll()`.
 
 ### Changed
-
 - Relaxed the `$media` parameter in `BroadcastManager::editLastBroadcastForAll()` so it is no longer limited to `?array`.
 - Edit-last-broadcast flow can now reuse the same saved media format used by regular broadcast sending.
 
 ### Notes
-
 - Passing `null` as media keeps the existing media unchanged.
 - Passing a saved media value attempts to update the edited message media/caption.
+
+---
+
+## [3.2.2] - 2026-06-15
+
+### Changed
+* Reduced default broadcast concurrency from `20` to `10`.
+* Reduced the maximum allowed concurrency limit from `50` to `30` to reduce pressure on the MadelineProto event loop during large broadcasts.
+* Progress status messages are now edited every `5` seconds instead of every second.
+* Progress status updates now also perform a final update when the operation reaches completion.
+* Slowed down broadcast workers with a small delay between processed jobs.
+* Added a delay after each media album chunk sent with `sendMultiMedia`.
+* Added a delay between sequential messages sent to the same peer.
+* Broadcast control buttons are now displayed in English:
+  * `Pause`
+  * `Resume`
+  * `Cancel`
+
+### Fixed
+* Reduced the chance of `Timeout while waiting for updates.getChannelDifference` after heavy broadcasts.
+* Reduced unnecessary progress-message edit calls during active broadcasts.
+* Prevented noisy logs for harmless `MESSAGE_NOT_MODIFIED` errors during progress updates.
+* Improved progress update stability by ignoring unchanged status edits instead of logging them as failures.
+
+### Notes
+* This release keeps the custom BroadcastManager flow, including saved message IDs, edit-last-broadcast, delete-last-broadcast, scheduled broadcasts, and self-destruct broadcasts.
+* This is a stability and load-reduction update; it does not migrate to MadelineProto's official Broadcast API.
+
+---
